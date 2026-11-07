@@ -11,14 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from echo360_dl.cli import dashboard, telemetry
-from echo360_dl.cli.keys import DETAILS, DOWN, ENTER, UP, KeyReader, parse_keys
-from echo360_dl.cli.output import UI, UIOptions, fmt_clock, fmt_pair, fmt_rate, fmt_span
-from echo360_dl.cli.progress import LineProgress, LiveProgress, make_progress
-from echo360_dl.cli.render import result_view, stream_details
-from echo360_dl.cli.telemetry import Telemetry
-from echo360_dl.cli.theme import ASCII, UNICODE
-from echo360_dl.models import (
+from threech0.cli import dashboard, telemetry
+from threech0.cli.keys import DETAILS, DOWN, ENTER, UP, KeyReader, parse_keys
+from threech0.cli.output import UI, UIOptions, fmt_clock, fmt_pair, fmt_rate, fmt_span
+from threech0.cli.progress import LineProgress, LiveProgress, make_progress
+from threech0.cli.render import result_view, stream_details
+from threech0.cli.telemetry import Telemetry
+from threech0.cli.theme import ASCII, UNICODE
+from threech0.models import (
     DownloadResult,
     Failure,
     OutputFile,
@@ -261,7 +261,7 @@ def test_expanded_view_shows_details_and_debug():
 
 
 def test_stream_details_keys_match_pipeline_task_ids():
-    from echo360_dl.media.download import Component, component_task_id
+    from threech0.media.download import Component, component_task_id
 
     details = stream_details(make_recording(), UNICODE)
     video = Component("video-s1q1", "video", "s1q1", "u", "Source 1 video")
@@ -378,19 +378,19 @@ def test_summary_reports_measured_transfer_and_dedupes_warnings(tmp_path):
     assert "Skipping Source 3: forbidden" in flat
 
 
-# -- branding and compatibility -----------------------------------------------------------
+# -- branding ------------------------------------------------------------------------------
 
 
-def test_both_commands_are_installed_entry_points():
+def test_the_command_is_the_only_entry_point():
     scripts = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["scripts"]
-    assert scripts["3ch0"] == scripts["echo360-dl"] == "echo360_dl.cli.app:main"
+    assert scripts == {"3ch0": "threech0.cli.app:main"}
 
 
 def test_help_uses_the_new_brand():
     result = invoke(["--help"])
     assert result.exit_code == 0
     assert "3CH0" in result.output and "Usage: 3ch0" in " ".join(result.output.split())
-    assert "echo360-dl" in result.output  # the alias is documented
+    assert "echo360-dl" not in result.output  # no old-name alias
 
 
 # -- flicker-free redraw, early totals, encode estimate, --plain --------------------------
@@ -407,8 +407,8 @@ def test_live_region_rewrites_only_changed_lines_without_blanking():
     from rich.console import Console
     from rich.text import Text
 
-    from echo360_dl.cli.live import ERASE_EOL, SHOW_CURSOR, SYNC_OFF, SYNC_ON, LiveRegion
-    from echo360_dl.cli.theme import THEME
+    from threech0.cli.live import ERASE_EOL, SHOW_CURSOR, SYNC_OFF, SYNC_ON, LiveRegion
+    from threech0.cli.theme import THEME
 
     stream = TTYUtf8()
     console = Console(file=stream, theme=THEME, width=60, height=20, force_terminal=True,

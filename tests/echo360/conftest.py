@@ -78,4 +78,4 @@ def progress() -> RecordingProgress:
 
 @pytest.fixture(autouse=True)
 def _isolated_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("ECHO360_DL_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("THREECH0_HOME", str(tmp_path / "home"))

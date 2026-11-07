@@ -8,17 +8,17 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from echo360_dl.echo360.capture import CaptureState, ObservedResponse
-from echo360_dl.echo360.discovery import (
+from threech0.echo360.capture import CaptureState, ObservedResponse
+from threech0.echo360.discovery import (
     build_recording,
     discover,
     discover_from_request_file,
     sibling_master_url,
 )
-from echo360_dl.echo360.session import Echo360Session
-from echo360_dl.echo360.urls import parse_classroom_url
-from echo360_dl.errors import AuthExpiredError, UnauthorizedError, UnavailableError, UsageError
-from echo360_dl.models import (
+from threech0.echo360.session import Echo360Session
+from threech0.echo360.urls import parse_classroom_url
+from threech0.errors import AuthExpiredError, UnauthorizedError, UnavailableError, UsageError
+from threech0.models import (
     AccessState,
     AuthContext,
     Cookie,
@@ -293,7 +293,7 @@ def test_request_file_expired_or_refused(tmp_path, progress):
 
 
 def test_discover_dispatch_writes_trace_in_request_file_mode(tmp_path, progress, monkeypatch):
-    import echo360_dl.echo360.discovery as disc
+    import threech0.echo360.discovery as disc
 
     path = _request_file(tmp_path, playlist_url(1))
     transport = httpx.MockTransport(_content_handler({1: 200}))

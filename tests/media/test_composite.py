@@ -6,8 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from echo360_dl.media.ffmpeg import ffprobe_json
-from echo360_dl.media.mux import (
+from tests.media.conftest import FIXTURES, FakeSession, RecordingProgress, caption, make_recording
+from threech0.media.ffmpeg import ffprobe_json
+from threech0.media.mux import (
     CompositeSpec,
     InputInfo,
     available_encoders,
@@ -15,8 +16,8 @@ from echo360_dl.media.mux import (
     composite_tile_sizes,
     resolve_encoder,
 )
-from echo360_dl.media.pipeline import run_download
-from echo360_dl.models import (
+from threech0.media.pipeline import run_download
+from threech0.models import (
     Chapter,
     ChapterProvenance,
     ChapterSet,
@@ -28,8 +29,7 @@ from echo360_dl.models import (
     OutputKind,
     ResultStatus,
 )
-from echo360_dl.selection import composite_pair, parse_layout_order
-from tests.media.conftest import FIXTURES, FakeSession, RecordingProgress, caption, make_recording
+from threech0.selection import composite_pair, parse_layout_order
 
 CHAPTERS = ChapterSet([Chapter(0.0, "Intro"), Chapter(3.0, "Second")],
                       ChapterProvenance.NATIVE, "metadata")
@@ -65,7 +65,7 @@ def test_odd_sizes_become_even():
 
 
 def test_composite_pair_rules():
-    from echo360_dl.errors import UsageError
+    from threech0.errors import UsageError
 
     assert composite_pair((1, 2)) == (1, 2)
     assert composite_pair((1, 2), (2, 1)) == (2, 1)
@@ -168,7 +168,7 @@ def test_composite_with_one_source_fails_clearly(server, tmp_path):
 
 
 def test_videotoolbox_bitrate_follows_inputs(tmp_path):
-    from echo360_dl.media.mux import VT_MAX_BITRATE, composite_bitrate
+    from threech0.media.mux import VT_MAX_BITRATE, composite_bitrate
 
     files = []
     for i, size in enumerate((10_500_000, 19_800_000)):  # live 360p video-only sizes

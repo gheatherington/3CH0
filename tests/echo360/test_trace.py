@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import stat
 
-from echo360_dl.echo360.trace import TraceRecorder, json_shape
+from threech0.echo360.trace import TraceRecorder, json_shape
 
 from .conftest import FAKE_JWT, FIXTURES, LESSON, MEDIA, playlist_url
 
@@ -46,7 +46,7 @@ def test_unparseable_json_and_cap():
     rec = TraceRecorder()
     rec.record("GET", "https://echo360.ca/x", 200, "application/json", b"{nope")
     assert rec.entries[0]["json_shape"] == "unparseable"
-    from echo360_dl.echo360 import trace as trace_mod
+    from threech0.echo360 import trace as trace_mod
     rec.entries = [{}] * trace_mod.MAX_ENTRIES
     rec.record("GET", "https://echo360.ca/y", 200, None)
     assert rec.dropped == 1
@@ -63,7 +63,7 @@ def test_tokens_in_url_paths_are_redacted():
 
 
 def test_embedded_page_json_records_structure_only():
-    from echo360_dl.echo360.trace import html_data_shapes
+    from threech0.echo360.trace import html_data_shapes
 
     secret_title = "Lecture 7 SECRETTITLE"
     payload = json.dumps({"lesson": {"name": secret_title, "durationMs": 3240000,
@@ -96,7 +96,7 @@ def test_embedded_page_json_records_structure_only():
 
 
 def test_inline_script_outline_has_names_but_no_values():
-    from echo360_dl.echo360.trace import inline_script_outline
+    from threech0.echo360.trace import inline_script_outline
 
     encoded = json.dumps(json.dumps({"lessonName": "SECRETTITLE2", "durationMs": 1}))
     html = f"""<script src="/x.js"></script>

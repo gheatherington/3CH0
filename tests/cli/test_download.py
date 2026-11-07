@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from echo360_dl.models import (
+from threech0.models import (
     ChapterModeKind,
     Container,
     DownloadResult,

@@ -4,8 +4,9 @@ import json
 
 import pytest
 
-from echo360_dl.errors import TranscriptUnavailableError, UnavailableError, ValidationError
-from echo360_dl.media.subtitles import (
+from tests.media.conftest import FIXTURES
+from threech0.errors import TranscriptUnavailableError, UnavailableError, ValidationError
+from threech0.media.subtitles import (
     detect_format,
     loses_information,
     normalize_cues,
@@ -17,8 +18,7 @@ from echo360_dl.media.subtitles import (
     track_title,
     validate_cues,
 )
-from echo360_dl.models import Cue, Transcript, TranscriptProvenance
-from tests.media.conftest import FIXTURES
+from threech0.models import Cue, Transcript, TranscriptProvenance
 
 
 def _t(cues, provenance=TranscriptProvenance.PLATFORM_CAPTIONS, language="en"):
@@ -155,7 +155,7 @@ def test_track_titles():
 
 
 def test_platform_json_sidecar_is_scrubbed_but_captions_kept_verbatim():
-    from echo360_dl.media.pipeline import _scrubbed_raw
+    from threech0.media.pipeline import _scrubbed_raw
 
     raw = b'{"cues": [], "src": "https://x.echo360.ca/a.vtt?Signature=SECRETSIG123"}'
     assert b"SECRETSIG123" not in _scrubbed_raw(raw, "json")
@@ -164,8 +164,8 @@ def test_platform_json_sidecar_is_scrubbed_but_captions_kept_verbatim():
 
 
 def test_duplicate_platform_transcript_is_embedded_once():
-    from echo360_dl.media.pipeline import dedupe_platform_tracks
-    from echo360_dl.models import Cue, Transcript, TranscriptProvenance
+    from threech0.media.pipeline import dedupe_platform_tracks
+    from threech0.models import Cue, Transcript, TranscriptProvenance
 
     cues = [Cue("Welcome back", 1.0, 2.0), Cue("Today: limits", 2.0, 4.0)]
     captions = Transcript(None, TranscriptProvenance.PLATFORM_CAPTIONS, cues)
@@ -182,9 +182,9 @@ def test_duplicate_platform_transcript_is_embedded_once():
 
 
 def test_merged_duplicate_marks_captions_automatic():
-    from echo360_dl.media.pipeline import dedupe_platform_tracks
-    from echo360_dl.media.subtitles import track_title
-    from echo360_dl.models import Cue, Transcript, TranscriptProvenance
+    from threech0.media.pipeline import dedupe_platform_tracks
+    from threech0.media.subtitles import track_title
+    from threech0.models import Cue, Transcript, TranscriptProvenance
 
     cues = [Cue("Welcome back", 1.0, 2.0), Cue("Today: limits", 2.0, 4.0)]
     captions = Transcript("en", TranscriptProvenance.PLATFORM_CAPTIONS, cues)

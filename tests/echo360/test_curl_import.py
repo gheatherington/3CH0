@@ -5,13 +5,13 @@ import subprocess
 
 import pytest
 
-from echo360_dl.echo360.curl_import import (
+from threech0.echo360.curl_import import (
     cloudfront_policy_expiry,
     load_request_file,
     parse_curl,
 )
-from echo360_dl.errors import UsageError
-from echo360_dl.models import AuthContext
+from threech0.errors import UsageError
+from threech0.models import AuthContext
 
 from .conftest import FAKE_JWT, FAKE_SIGNATURE, LESSON, cloudfront_policy, playlist_url
 

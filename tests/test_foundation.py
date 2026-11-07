@@ -7,8 +7,8 @@ import stat
 
 import pytest
 
-from echo360_dl.errors import ExitCode, QualityUnavailableError, UsageError
-from echo360_dl.models import (
+from threech0.errors import ExitCode, QualityUnavailableError, UsageError
+from threech0.models import (
     AuthContext,
     CaptionTrack,
     ChapterModeKind,
@@ -23,8 +23,8 @@ from echo360_dl.models import (
     VideoSource,
     to_jsonable,
 )
-from echo360_dl.redact import public_url, scrub
-from echo360_dl.selection import (
+from threech0.redact import public_url, scrub
+from threech0.selection import (
     iso639_2,
     language_matches,
     parse_chapters,
@@ -34,7 +34,7 @@ from echo360_dl.selection import (
     resolve_streams,
     select_rendition,
 )
-from echo360_dl.timecode import format_clock, parse_time
+from threech0.timecode import format_clock, parse_time
 
 
 def _source(index: int, heights: list[int]) -> VideoSource:
@@ -62,8 +62,8 @@ def test_resolve_streams_unknown_source():
     assert resolve_streams(parse_streams("all"), rec) == (1, 2)
     with pytest.raises(Exception, match="Source 3 not found"):
         resolve_streams(parse_streams("3"), rec)
-    from echo360_dl.models import AccessState
-    from echo360_dl.selection import skipped_by_all
+    from threech0.models import AccessState
+    from threech0.selection import skipped_by_all
     rec.sources[1].access = AccessState.FORBIDDEN
     assert resolve_streams(parse_streams("all"), rec) == (1,)
     assert [s.index for s in skipped_by_all(rec)] == [2]
@@ -193,8 +193,8 @@ def test_result_exit_codes():
 
 
 def test_probed_403_source_gives_forbidden_not_missing():
-    from echo360_dl.errors import ExitCode, ForbiddenError
-    from echo360_dl.models import AccessState
+    from threech0.errors import ExitCode, ForbiddenError
+    from threech0.models import AccessState
 
     rec = Recording(lesson_id="L", classroom_url="u", host="echo360.ca",
                     sources=[_source(1, [720])],

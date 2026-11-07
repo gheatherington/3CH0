@@ -7,8 +7,8 @@ import threading
 
 import pytest
 
-from echo360_dl.cli import output as cli_output
-from echo360_dl.cli.output import (
+from threech0.cli import output as cli_output
+from threech0.cli.output import (
     UI,
     UIOptions,
     cancellation,
@@ -16,14 +16,14 @@ from echo360_dl.cli.output import (
     make_sigint_handler,
     scrub_strings,
 )
-from echo360_dl.cli.progress import (
+from threech0.cli.progress import (
     LineProgress,
     LiveProgress,
     QuietProgress,
     make_progress,
 )
-from echo360_dl.cli.theme import status_label
-from echo360_dl.models import ProgressSink, Stage
+from threech0.cli.theme import status_label
+from threech0.models import ProgressSink, Stage
 
 from .conftest import CONTENT, QUERY, SECRET_SIG, SECRET_UID, invoke
 
@@ -261,7 +261,7 @@ def test_force_color_on_a_pipe_does_not_animate(monkeypatch):
 def test_main_json_mode_reports_option_errors_as_json(capsys):
     import json as _json
 
-    from echo360_dl.cli.app import main
+    from threech0.cli.app import main
 
     with pytest.raises(SystemExit) as info:
         main(["download", "https://echo360.ca/lesson/x/classroom", "--json",
@@ -275,7 +275,7 @@ def test_main_json_mode_reports_option_errors_as_json(capsys):
 
 
 def test_main_json_mode_keeps_command_exit_codes(capsys, tmp_path):
-    from echo360_dl.cli.app import main
+    from threech0.cli.app import main
 
     bad = tmp_path / "bad.json"
     bad.write_text('{"version": 1, "chapters": [{"start": "00:00:05", "title": ""}]}')
@@ -285,7 +285,7 @@ def test_main_json_mode_keeps_command_exit_codes(capsys, tmp_path):
 
 
 def test_main_cancel_message_respects_ascii(capsys, monkeypatch):
-    from echo360_dl.cli import app as app_module
+    from threech0.cli import app as app_module
 
     def interrupted(*args, **kwargs):
         raise KeyboardInterrupt

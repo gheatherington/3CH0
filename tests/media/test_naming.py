@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from echo360_dl.media.naming import (
+from threech0.media.naming import (
     BASE_BUDGET,
     MAX_NAME_BYTES,
     language_tag,
@@ -18,7 +18,7 @@ from echo360_dl.media.naming import (
     truncate_utf8,
     with_suffix,
 )
-from echo360_dl.models import DownloadRequest, Layout, Recording
+from threech0.models import DownloadRequest, Layout, Recording
 
 
 def _rec(**kw) -> Recording:
@@ -92,13 +92,13 @@ def test_language_tag_and_suffix():
 def test_stale_temp_sweep_only_touches_old_temps_of_this_lesson(tmp_path):
     import os
 
-    from echo360_dl.media.mux import STALE_TEMP_AGE, remove_stale_temps
+    from threech0.media.mux import STALE_TEMP_AGE, remove_stale_temps
 
     now = 10_000.0
-    mine_old = tmp_path / ".Lecture [abc123] - Source 1.echo360-dl-tmp.mp4"
-    mine_live = tmp_path / ".Lecture [abc123] - Source 2.echo360-dl-tmp.mp4"
-    other_old = tmp_path / ".Other [zzz999] - Source 1.echo360-dl-tmp.mp4"
-    sidecar_old = tmp_path / ".Lecture [abc123].en.echo360-dl-tmp.vtt"
+    mine_old = tmp_path / ".Lecture [abc123] - Source 1.3ch0-tmp.mp4"
+    mine_live = tmp_path / ".Lecture [abc123] - Source 2.3ch0-tmp.mp4"
+    other_old = tmp_path / ".Other [zzz999] - Source 1.3ch0-tmp.mp4"
+    sidecar_old = tmp_path / ".Lecture [abc123].en.3ch0-tmp.vtt"
     for path, age in ((mine_old, STALE_TEMP_AGE + 1), (mine_live, 5),
                       (other_old, STALE_TEMP_AGE + 1), (sidecar_old, STALE_TEMP_AGE + 1)):
         path.write_bytes(b"x")

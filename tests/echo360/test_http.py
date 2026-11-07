@@ -5,8 +5,8 @@ import time
 import httpx
 import pytest
 
-from echo360_dl.echo360.http import MAX_REDIRECTS, HttpClient, classify_status
-from echo360_dl.models import AccessState, AuthContext, Cookie
+from threech0.echo360.http import MAX_REDIRECTS, HttpClient, classify_status
+from threech0.models import AccessState, AuthContext, Cookie
 
 from .conftest import FAKE_JWT, FAKE_SIGNATURE, LESSON, playlist_url
 

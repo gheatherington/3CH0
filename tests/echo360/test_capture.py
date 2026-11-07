@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from echo360_dl.echo360.capture import (
+from threech0.echo360.capture import (
     CaptureState,
     ObservedResponse,
     run_capture_loop,

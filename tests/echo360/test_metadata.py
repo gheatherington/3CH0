@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from echo360_dl.echo360 import metadata
-from echo360_dl.errors import ValidationError
-from echo360_dl.models import ChapterProvenance, DiscoveryMethod, TranscriptProvenance
+from threech0.echo360 import metadata
+from threech0.errors import ValidationError
+from threech0.models import ChapterProvenance, DiscoveryMethod, TranscriptProvenance
 
 from .conftest import FIXTURES, LESSON, MEDIA, OTHER_LESSON
 
@@ -158,7 +158,7 @@ def test_transcript_api_url_is_quoted():
 
 
 def test_observed_caption_language_inferred_from_evidence():
-    from echo360_dl.echo360.metadata import caption_language, caption_track_from_response
+    from threech0.echo360.metadata import caption_language, caption_track_from_response
 
     vtt = b"WEBVTT\nKind: captions\nLanguage: en-CA\n\n00:00.000 --> 00:01.000\nhi\n"
     assert caption_language("https://x.example/c/abc.vtt", vtt) == "en-CA"
@@ -174,7 +174,7 @@ def test_observed_transcript_shape_and_automated_label():
     """Shape observed on echo360.ca (2026-11-07 trace); values fictional."""
     import json as _json
 
-    from echo360_dl.echo360.metadata import parse_transcript_json, transcript_label
+    from threech0.echo360.metadata import parse_transcript_json, transcript_label
 
     body = {"status": "ok", "message": "", "data": {
         "id": "t1", "created": "2026-01-05T12:00:00Z", "status": "COMPLETE",
@@ -195,8 +195,8 @@ def test_observed_transcript_shape_and_automated_label():
 
 
 def test_automatic_platform_captions_titled_as_such():
-    from echo360_dl.media.subtitles import track_title
-    from echo360_dl.models import Transcript, TranscriptProvenance
+    from threech0.media.subtitles import track_title
+    from threech0.models import Transcript, TranscriptProvenance
 
     t = Transcript(language="en", provenance=TranscriptProvenance.PLATFORM_TRANSCRIPT,
                    label="Echo360 automatic transcript")
@@ -207,7 +207,7 @@ def test_metadata_read_from_json_string_embedded_in_page():
     """Hypothetical embedding form (JSON string passed to a function); fictional values."""
     import json as _json
 
-    from echo360_dl.echo360.metadata import extract_metadata
+    from threech0.echo360.metadata import extract_metadata
 
     lesson = "G_fictional-lesson-0001"
     data = {"lesson": {"lesson": {"id": lesson, "name": "Fictional Lecture 3"}}}
@@ -246,7 +246,7 @@ def _player_app(lesson_id: str) -> dict:
 def test_observed_player_app_object_is_authoritative():
     import json as _json
 
-    from echo360_dl.echo360.metadata import extract_metadata
+    from threech0.echo360.metadata import extract_metadata
 
     lesson = "G_fictional-lesson-0002"
     html = ('<script>Echo["echoPlayerV2FullApp"]('
@@ -269,7 +269,7 @@ def test_observed_player_app_object_is_authoritative():
 def test_player_app_for_another_lesson_is_ignored():
     import json as _json
 
-    from echo360_dl.echo360.metadata import extract_metadata
+    from threech0.echo360.metadata import extract_metadata
 
     html = ('<script>Echo["echoPlayerV2FullApp"]('
             f"{_json.dumps(_json.dumps(_player_app('G_other-lesson')))});</script>")
@@ -281,7 +281,7 @@ def test_player_app_for_another_lesson_is_ignored():
 @pytest.mark.parametrize(("text", "seconds"), [
     ("PT3240.045S", 3240.045), ("PT1H2M3S", 3723.0), ("PT45M", 2700.0), ("P1DT1S", 86401.0)])
 def test_parse_iso_duration(text, seconds):
-    from echo360_dl.echo360.metadata import parse_iso_duration
+    from threech0.echo360.metadata import parse_iso_duration
 
     assert parse_iso_duration(text) == pytest.approx(seconds)
     assert parse_iso_duration("P") is None and parse_iso_duration("3240") is None

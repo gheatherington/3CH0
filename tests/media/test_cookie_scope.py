@@ -7,9 +7,9 @@ import os
 import stat
 import urllib.request
 
-from echo360_dl.media import download
-from echo360_dl.media.download import Component, WorkDir
-from echo360_dl.models import AuthContext, Cookie
+from threech0.media import download
+from threech0.media.download import Component, WorkDir
+from threech0.models import AuthContext, Cookie
 
 CONTENT = "https://content.echo360.ca/0000.i/m/1/s1q1.m3u8"
 
@@ -30,7 +30,7 @@ def test_jar_contains_only_cookies_for_the_component_url(tmp_path):
 
 
 def test_jar_lives_outside_the_output_tree_and_is_removed(tmp_path):
-    work = WorkDir(tmp_path / "out" / ".echo360-dl-x")
+    work = WorkDir(tmp_path / "out" / ".3ch0-x")
     comp = next(iter([c for c in [_component()]]))
     with work.cookie_jar(comp, _auth()) as jar:
         assert tmp_path not in jar.parents

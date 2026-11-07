@@ -20,9 +20,10 @@ from typing import Any
 
 import pytest
 
-from echo360_dl.errors import AuthExpiredError
-from echo360_dl.media.subtitles import parse_subtitle_bytes
-from echo360_dl.models import (
+from tests.media.hls_server import COOKIE_NAME, HLSServer
+from threech0.errors import AuthExpiredError
+from threech0.media.subtitles import parse_subtitle_bytes
+from threech0.models import (
     AccessState,
     AudioRendition,
     AudioTrack,
@@ -38,7 +39,6 @@ from echo360_dl.models import (
     VideoRendition,
     VideoSource,
 )
-from tests.media.hls_server import COOKIE_NAME, HLSServer
 
 HAVE_FFMPEG = bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "media"
@@ -110,7 +110,7 @@ def server(hls_root: Path):
 
 @pytest.fixture(autouse=True)
 def _fast_retries(monkeypatch: pytest.MonkeyPatch) -> None:
-    from echo360_dl.media import download
+    from threech0.media import download
 
     monkeypatch.setattr(download, "RETRY_BACKOFF", 0.01)
 
@@ -171,7 +171,7 @@ class FakeSession:
         return AuthContext(
             cookies=[Cookie(name=COOKIE_NAME, value=token, domain="127.0.0.1", secure=False),
                      Cookie(name="ECHO_JWT", value=JWT_SECRET, domain="echo360.ca")],
-            headers={"User-Agent": "echo360-dl-test/1.0",
+            headers={"User-Agent": "3ch0-test/1.0",
                      "Referer": "https://echo360.ca/lesson/x/classroom",
                      "Cookie": "SHOULD-NOT-BE-SENT=1", "Authorization": "Bearer nope"},
             source="browser")
@@ -200,7 +200,7 @@ class FakeSession:
 
 def expired_refresh_error() -> AuthExpiredError:
     return AuthExpiredError(f"Session expired (cookie {COOKIE_NAME}=tok-SECRETVALUE9)",
-                            hint="Run `echo360-dl auth login`.")
+                            hint="Run `3ch0 auth login`.")
 
 
 class FakeTranscriber:

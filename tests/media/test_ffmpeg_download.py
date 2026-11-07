@@ -5,14 +5,21 @@ import threading
 
 import pytest
 
-from echo360_dl.errors import (
+from tests.media.conftest import (
+    SIGNED_QUERY,
+    URL_SECRETS,
+    FakeSession,
+    RecordingProgress,
+    expired_refresh_error,
+)
+from threech0.errors import (
     AuthExpiredError,
     CancelledError,
     DependencyError,
     ForbiddenError,
 )
-from echo360_dl.media import ffmpeg
-from echo360_dl.media.download import (
+from threech0.media import ffmpeg
+from threech0.media.download import (
     AuthRefresher,
     Component,
     DownloadContext,
@@ -21,14 +28,7 @@ from echo360_dl.media.download import (
     playlist_total_bytes,
     resume_playlist,
 )
-from echo360_dl.models import NullProgress
-from tests.media.conftest import (
-    SIGNED_QUERY,
-    URL_SECRETS,
-    FakeSession,
-    RecordingProgress,
-    expired_refresh_error,
-)
+from threech0.models import NullProgress
 
 PLAYLIST = """#EXTM3U
 #EXT-X-VERSION:7
@@ -99,7 +99,7 @@ def test_download_is_byte_identical_with_real_progress(server, hls_root, tmp_pat
     assert totals == {len(original)}  # exact total from the byte-range playlist
     assert not list(ctx.work.path.glob(".cookies-*"))
     headers = server.state.headers_seen
-    assert all(h.get("user-agent") == "echo360-dl-test/1.0" for h in headers)
+    assert all(h.get("user-agent") == "3ch0-test/1.0" for h in headers)
     assert all("SHOULD-NOT-BE-SENT" not in h.get("cookie", "") for h in headers)
     assert all("authorization" not in h for h in headers)
     # A second call reuses the completed component without any request.

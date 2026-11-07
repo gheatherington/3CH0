@@ -16,10 +16,10 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from echo360_dl.cli import output as cli_output
-from echo360_dl.cli.app import app
-from echo360_dl.errors import LoginRequiredError, ValidationError
-from echo360_dl.models import (
+from threech0.cli import output as cli_output
+from threech0.cli.app import app
+from threech0.errors import LoginRequiredError, ValidationError
+from threech0.models import (
     AccessState,
     AudioRendition,
     AudioTrack,
@@ -53,7 +53,7 @@ from echo360_dl.models import (
     VideoRendition,
     VideoSource,
 )
-from echo360_dl.services import Services, set_services
+from threech0.services import Services, set_services
 
 SECRET_SIG = "SeCrEtSiGnAtUrE9876"
 SECRET_UID = "UidSecret424242"
@@ -186,7 +186,7 @@ class FakeServices(Services):
     confirm_answers: list[bool] = field(default_factory=list)
 
     def parse_url(self, url: str) -> ClassroomRef:
-        from echo360_dl.errors import InvalidURLError
+        from threech0.errors import InvalidURLError
 
         if "/lesson/" not in url:
             raise InvalidURLError(f"Not an Echo360 classroom URL: {url.split('?')[0]}")
@@ -249,7 +249,7 @@ class FakeServices(Services):
             data = json.loads(path.read_text())
         except ValueError as exc:
             raise ValidationError(f"{path.name}: not valid JSON ({exc.msg}).") from None
-        from echo360_dl.timecode import parse_time
+        from threech0.timecode import parse_time
 
         return ChapterSet([Chapter(parse_time(c["start"]), c["title"],
                                    parse_time(c["end"]) if "end" in c else None)
@@ -285,7 +285,7 @@ class FakeServices(Services):
 
 @pytest.fixture
 def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeServices]:
-    monkeypatch.setenv("ECHO360_DL_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("THREECH0_HOME", str(tmp_path / "home"))
     services = FakeServices()
     set_services(services)
     yield services

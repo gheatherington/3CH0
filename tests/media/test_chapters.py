@@ -4,8 +4,9 @@ import json
 
 import pytest
 
-from echo360_dl.errors import UnavailableError, ValidationError
-from echo360_dl.media.chapters import (
+from tests.media.conftest import FIXTURES
+from threech0.errors import UnavailableError, ValidationError
+from threech0.media.chapters import (
     chapters_to_json,
     choose_chapters,
     ffmetadata_escape,
@@ -16,8 +17,7 @@ from echo360_dl.media.chapters import (
     to_ffmetadata,
     validate_chapters,
 )
-from echo360_dl.models import Chapter, ChapterMode, ChapterModeKind, ChapterProvenance, ChapterSet
-from tests.media.conftest import FIXTURES
+from threech0.models import Chapter, ChapterMode, ChapterModeKind, ChapterProvenance, ChapterSet
 
 
 def test_load_valid_file_all_time_forms():

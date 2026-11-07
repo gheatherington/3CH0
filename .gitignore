@@ -20,8 +20,14 @@ echo-browser/
 *.mkv
 *.m4a
 *.part
-.echo360-dl-*/
+.3ch0-*/
 
 # Personal Claude Code files
 CLAUDE.local.md
 .claude/settings.local.json
+
+# Local-only docs and Claude Code project files (kept on disk, not published)
+CLAUDE.md
+redesign.md
+docs/
+.claude/

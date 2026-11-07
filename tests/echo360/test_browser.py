@@ -7,9 +7,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from echo360_dl.echo360 import browser
-from echo360_dl.echo360.urls import parse_classroom_url
-from echo360_dl.errors import LoginRequiredError
+from threech0.echo360 import browser
+from threech0.echo360.urls import parse_classroom_url
+from threech0.errors import LoginRequiredError
 
 from .conftest import CLASSROOM, FAKE_JWT, LESSON, master_text, playlist_url
 
@@ -190,7 +190,7 @@ def test_auth_context_expiry_from_policy_cookie():
 
 
 def test_session_evidence_requires_current_echo360_session_cookie():
-    from echo360_dl.echo360.browser import session_evidence
+    from threech0.echo360.browser import session_evidence
 
     now = 1_000_000.0
     jwt = {"name": "ECHO_JWT", "value": "never-read", "domain": ".echo360.ca",
@@ -206,7 +206,7 @@ def test_session_evidence_requires_current_echo360_session_cookie():
 def test_session_cookies_round_trip_and_stay_private(tmp_path):
     import stat
 
-    from echo360_dl.echo360.browser import (
+    from threech0.echo360.browser import (
         SESSION_FILE,
         load_session_cookies,
         save_session_cookies,
@@ -234,7 +234,7 @@ def test_session_cookies_round_trip_and_stay_private(tmp_path):
 
 
 def test_load_session_cookies_tolerates_missing_or_corrupt_file(tmp_path):
-    from echo360_dl.echo360.browser import SESSION_FILE, load_session_cookies
+    from threech0.echo360.browser import SESSION_FILE, load_session_cookies
 
     assert load_session_cookies(tmp_path) == []
     (tmp_path / SESSION_FILE).write_text("{not json")

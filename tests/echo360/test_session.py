@@ -7,15 +7,15 @@ import types
 import httpx
 import pytest
 
-from echo360_dl.echo360.session import MAX_REFRESHES, Echo360Session
-from echo360_dl.errors import (
+from threech0.echo360.session import MAX_REFRESHES, Echo360Session
+from threech0.errors import (
     AuthExpiredError,
     ForbiddenError,
     LoginRequiredError,
     TranscriptUnavailableError,
     ValidationError,
 )
-from echo360_dl.models import (
+from threech0.models import (
     AccessState,
     AuthContext,
     CaptionTrack,
@@ -60,7 +60,7 @@ def test_refresh_failure_is_auth_expired_and_counts():
 
     def refresher():
         calls.append(1)
-        raise LoginRequiredError("not signed in", hint="Run: echo360-dl auth login")
+        raise LoginRequiredError("not signed in", hint="Run: 3ch0 auth login")
 
     session = _session(refresher=refresher)
     with pytest.raises(AuthExpiredError, match="not signed in"):
@@ -140,9 +140,9 @@ def test_fetch_vtt_delegates_to_media_parser(monkeypatch):
         calls.append((data, fmt))
         return [Cue(text="hi", start=1.0, end=2.0)]
 
-    fake = types.ModuleType("echo360_dl.media.subtitles")
+    fake = types.ModuleType("threech0.media.subtitles")
     fake.parse_subtitle_bytes = parse_subtitle_bytes
-    monkeypatch.setitem(sys.modules, "echo360_dl.media.subtitles", fake)
+    monkeypatch.setitem(sys.modules, "threech0.media.subtitles", fake)
     vtt = b"WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nhi\n"
     session = _session(lambda r: httpx.Response(200, content=vtt))
     track = _track(vtt="https://captions.echo360.ca/x.vtt", json="https://echo360.ca/j")

@@ -9,11 +9,23 @@ from pathlib import Path
 
 import pytest
 
-from echo360_dl.media import mux as mux_module
-from echo360_dl.media import pipeline
-from echo360_dl.media.ffmpeg import count_packets, ffprobe_json
-from echo360_dl.media.pipeline import obtain_transcripts, run_download, work_dir_for
-from echo360_dl.models import (
+from tests.media.conftest import (
+    FIXTURES,
+    FORBIDDEN_HEADER_VALUES,
+    JWT_SECRET,
+    URL_SECRETS,
+    FakeSession,
+    FakeTranscriber,
+    RecordingProgress,
+    caption,
+    expired_refresh_error,
+    make_recording,
+)
+from threech0.media import mux as mux_module
+from threech0.media import pipeline
+from threech0.media.ffmpeg import count_packets, ffprobe_json
+from threech0.media.pipeline import obtain_transcripts, run_download, work_dir_for
+from threech0.models import (
     Chapter,
     ChapterMode,
     ChapterModeKind,
@@ -31,18 +43,6 @@ from echo360_dl.models import (
     TranscribeOptions,
     TranscriptProvenance,
     to_jsonable,
-)
-from tests.media.conftest import (
-    FIXTURES,
-    FORBIDDEN_HEADER_VALUES,
-    JWT_SECRET,
-    URL_SECRETS,
-    FakeSession,
-    FakeTranscriber,
-    RecordingProgress,
-    caption,
-    expired_refresh_error,
-    make_recording,
 )
 
 pytestmark = pytest.mark.ffmpeg
@@ -156,7 +156,7 @@ def test_one_source_mp4_subtitles_chapters_sync(server, hls_root, tmp_path):
     side = json.loads(next(out_dir.glob("*.chapters.json")).read_text())
     assert side["provenance"] == "native" and side["chapters"][0]["title"] == "Intro = ; # \\ é"
     assert not work_dir_for(out_dir, rec).exists()  # removed after full success
-    assert not list(out_dir.glob(".*echo360-dl-tmp*"))
+    assert not list(out_dir.glob(".*3ch0-tmp*"))
     _no_secrets(result, progress, out_dir, server)
 
 
@@ -400,7 +400,7 @@ def test_interrupted_finalisation_leaves_no_final_file(server, tmp_path, monkeyp
     rec = make_recording(server.base_url, sources=(1,))
     result = run_download(_request(rec, tmp_path), FakeSession(server), progress=NullProgress())
     out_dir = tmp_path / "out"
-    assert not list(out_dir.glob("*.mp4")) and not list(out_dir.glob(".*echo360-dl-tmp*"))
+    assert not list(out_dir.glob("*.mp4")) and not list(out_dir.glob(".*3ch0-tmp*"))
     if error is KeyboardInterrupt:
         assert result.status is ResultStatus.CANCELLED
     else:
@@ -529,8 +529,8 @@ def test_malformed_platform_subtitle_is_reported_not_fatal(server, tmp_path):
 
 
 def test_missing_speech_model_fails_before_downloading(server, tmp_path):
-    from echo360_dl.errors import ModelDownloadRequiredError
-    from echo360_dl.models import TranscribeOptions
+    from threech0.errors import ModelDownloadRequiredError
+    from threech0.models import TranscribeOptions
 
     def factory(options):
         raise ModelDownloadRequiredError("Speech model 'small' is not downloaded yet.")
@@ -544,8 +544,8 @@ def test_missing_speech_model_fails_before_downloading(server, tmp_path):
 
 
 def test_transcriber_resolved_once_and_reused(server, tmp_path):
-    from echo360_dl.models import TranscribeOptions
     from tests.media.conftest import FakeTranscriber
+    from threech0.models import TranscribeOptions
 
     made: list[FakeTranscriber] = []
 
@@ -562,7 +562,7 @@ def test_transcriber_resolved_once_and_reused(server, tmp_path):
 
 
 def test_inconsistent_native_chapters_warn_but_do_not_fail(server, tmp_path):
-    from echo360_dl.models import ChapterProvenance
+    from threech0.models import ChapterProvenance
 
     native = ChapterSet([Chapter(0.0, "a"), Chapter(500.0, "beyond the end")],
                         ChapterProvenance.NATIVE)

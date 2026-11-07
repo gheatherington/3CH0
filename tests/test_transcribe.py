@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from echo360_dl import transcribe
-from echo360_dl.errors import DependencyError, ModelDownloadRequiredError, UsageError
-from echo360_dl.models import NullProgress, TranscribeOptions, TranscriptProvenance
+from threech0 import transcribe
+from threech0.errors import DependencyError, ModelDownloadRequiredError, UsageError
+from threech0.models import NullProgress, TranscribeOptions, TranscriptProvenance
 
 
 def _fake_backends(monkeypatch, fw: bool, mlx: bool, apple: bool = True):
@@ -68,12 +68,12 @@ def test_cues_never_negative_or_empty():
 @pytest.mark.skipif(sys.platform != "darwin" or not shutil.which("say"),
                     reason="needs macOS 'say' for synthetic speech")
 def test_real_faster_whisper_on_synthetic_speech(tmp_path, monkeypatch):
-    """Opt-in: set ECHO360_DL_TEST_MODEL_HOME to a home whose cache already holds 'tiny'."""
+    """Opt-in: set THREECH0_TEST_MODEL_HOME to a home whose cache already holds 'tiny'."""
     pytest.importorskip("faster_whisper")
-    home = os.environ.get("ECHO360_DL_TEST_MODEL_HOME")
+    home = os.environ.get("THREECH0_TEST_MODEL_HOME")
     if not home:
-        pytest.skip("set ECHO360_DL_TEST_MODEL_HOME (model cache with faster-whisper 'tiny')")
-    monkeypatch.setenv("ECHO360_DL_HOME", home)
+        pytest.skip("set THREECH0_TEST_MODEL_HOME (model cache with faster-whisper 'tiny')")
+    monkeypatch.setenv("THREECH0_HOME", home)
     audio = tmp_path / "speech.aiff"
     subprocess.run(["say", "-o", str(audio), "Today we discuss eigenvalues."], check=True)
     t = transcribe.get_transcriber(TranscribeOptions(enabled=True, backend="faster-whisper",
@@ -94,7 +94,7 @@ def test_faster_whisper_stops_between_segments_when_cancelled():
     import threading
     from types import SimpleNamespace
 
-    from echo360_dl.errors import CancelledError
+    from threech0.errors import CancelledError
 
     event = threading.Event()
 

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from echo360_dl.models import (
+from threech0.models import (
     Chapter,
     Cue,
     SubtitleModeKind,
@@ -186,9 +186,9 @@ def test_chapters_show(fake, tmp_path):
     assert_clean(shown.stderr)
 
 
-def test_json_format_always_uses_echo360_dl_schema():
-    from echo360_dl.cli.output import serialise_transcript
-    from echo360_dl.models import Cue, Transcript, TranscriptProvenance
+def test_json_format_always_uses_threech0_schema():
+    from threech0.cli.output import serialise_transcript
+    from threech0.models import Cue, Transcript, TranscriptProvenance
 
     t = Transcript(language="en", provenance=TranscriptProvenance.PLATFORM_TRANSCRIPT,
                    cues=[Cue("hi", 0.0, 1.0)], raw=b'{"platform": "shape?token=SECRET1"}',
@@ -198,13 +198,13 @@ def test_json_format_always_uses_echo360_dl_schema():
 
 
 def test_unfetchable_platform_transcript_is_not_reported_as_absent():
-    from echo360_dl.cli.app import pick_transcript
-    from echo360_dl.errors import ExitCode, ForbiddenError
-    from echo360_dl.models import Failure, TranscriptBundle
+    from threech0.cli.app import pick_transcript
+    from threech0.errors import ExitCode, ForbiddenError
+    from threech0.models import Failure, TranscriptBundle
 
     bundle = TranscriptBundle(failed=[Failure("subtitles", "captions:en", "forbidden",
                                               "Could not fetch English captions: HTTP 403",
-                                              hint="Run `echo360-dl auth login`")])
+                                              hint="Run `3ch0 auth login`")])
     with pytest.raises(ForbiddenError) as info:
         pick_transcript(bundle, "en", "vtt", transcribe_enabled=False)
     assert info.value.exit_code == ExitCode.AUTH and "403" in info.value.message

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from echo360_dl import paths
-from echo360_dl.models import AuthStatus
+from threech0 import paths
+from threech0.models import AuthStatus
 
 from .conftest import invoke
 
@@ -47,7 +47,7 @@ def test_doctor_missing_ffmpeg_exit_6(fake, tmp_path):
 
 
 def test_doctor_handles_exceptions(fake, tmp_path):
-    fake.versions_error = ImportError("No module named 'echo360_dl.media.ffmpeg'")
+    fake.versions_error = ImportError("No module named 'threech0.media.ffmpeg'")
     fake.backends = RuntimeError("backend probe exploded")
     fake.browser = (False, "chromium not installed")
     result = invoke(["doctor", "-o", str(tmp_path), "--json"])
@@ -95,7 +95,7 @@ def test_auth_status(fake, tmp_path):
 
 
 def _profile(path: Path) -> Path:
-    """A profile echo360-dl created (marker file) that Chromium has used."""
+    """A profile 3ch0 created (marker file) that Chromium has used."""
     paths.prepare_profile_dir(path)
     (path / "Local State").write_text("{}")
     return path
@@ -112,8 +112,8 @@ def test_auth_logout_refuses_real_chrome_profile(fake, tmp_path):
 
 
 def test_browser_refuses_foreign_profile_dir(tmp_path):
-    from echo360_dl.echo360.browser import _profile as browser_profile
-    from echo360_dl.errors import UsageError
+    from threech0.echo360.browser import _profile as browser_profile
+    from threech0.errors import UsageError
 
     foreign = tmp_path / "Chrome"
     foreign.mkdir()

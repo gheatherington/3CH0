@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from echo360_dl.errors import UnauthorizedError
+from threech0.errors import UnauthorizedError
 
 from .conftest import CLASSROOM, URL, assert_clean, invoke, make_recording
 

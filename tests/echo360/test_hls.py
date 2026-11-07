@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from echo360_dl.echo360.hls import (
+from threech0.echo360.hls import (
     PlaylistError,
     build_audio_tracks,
     parse_attributes,

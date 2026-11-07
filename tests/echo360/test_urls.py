@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from echo360_dl.echo360.urls import (
+from threech0.echo360.urls import (
     SUPPORTED_HOSTS,
     content_path_ids,
     is_echo360_url,
@@ -11,7 +11,7 @@ from echo360_dl.echo360.urls import (
     media_param,
     parse_classroom_url,
 )
-from echo360_dl.errors import InvalidURLError
+from threech0.errors import InvalidURLError
 
 from .conftest import CLASSROOM, INSTITUTION, LESSON, MEDIA, playlist_url
 
@@ -101,7 +101,7 @@ def test_content_url_helpers():
     ("https://echo360.ca/api/x", False),
 ])
 def test_looks_like_login_page(url, expected):
-    from echo360_dl.echo360.urls import looks_like_login_page
+    from threech0.echo360.urls import looks_like_login_page
 
     assert looks_like_login_page(url) is expected
 
@@ -121,7 +121,7 @@ def test_observed_lesson_id_shape_accepted(encoded):
 
 
 def test_short_id_distinguishes_lessons_sharing_a_prefix():
-    from echo360_dl.models import Recording
+    from threech0.models import Recording
 
     other = REAL_SHAPE_ID.replace("10:30:00", "14:30:00")
     a = Recording(lesson_id=REAL_SHAPE_ID, classroom_url="u", host="echo360.ca")

@@ -75,7 +75,7 @@ Same command on every OS:
 uv tool install git+https://github.com/gheatherington/3CH0
 ```
 
-This installs the `3ch0` command (and its old name `echo360-dl`). If uv warns that its tool
+This installs the `3ch0` command. If uv warns that its tool
 folder is not on your `PATH`, run `uv tool update-shell` and open a new terminal.
 
 ### 3. Install Chromium for Playwright (one time)
@@ -143,10 +143,10 @@ to delete the login, or remove the folders below.
 
 | Stored data | macOS | Linux | Windows |
 | --- | --- | --- | --- |
-| Browser profile (your login) | `~/Library/Application Support/echo360-dl/browser-profile` | `~/.local/share/echo360-dl/browser-profile` | `%LOCALAPPDATA%\echo360-dl\browser-profile` |
-| Speech models | `~/Library/Caches/echo360-dl/models` | `~/.cache/echo360-dl/models` | `%LOCALAPPDATA%\echo360-dl\Cache\models` |
+| Browser profile (your login) | `~/Library/Application Support/3ch0/browser-profile` | `~/.local/share/3ch0/browser-profile` | `%LOCALAPPDATA%\3ch0\browser-profile` |
+| Speech models | `~/Library/Caches/3ch0/models` | `~/.cache/3ch0/models` | `%LOCALAPPDATA%\3ch0\Cache\models` |
 
-Set `ECHO360_DL_HOME` to keep everything under one folder instead (`data/`, `cache/` and
+Set `THREECH0_HOME` to keep everything under one folder instead (`data/`, `cache/` and
 `config/` inside it). Downloads go to your Downloads folder unless you pass `--output`.
 
 ### From a local copy
@@ -158,22 +158,6 @@ uv tool install .             # after pulling changes: uv tool install --reinsta
 ```
 
 Extras work the same way: `uv tool install --force '.[transcribe]'`.
-
-The original script still works as a thin wrapper: `python3 download_echo360.py URL` runs
-`3ch0 download URL --streams all` (see [Compatibility](#compatibility)).
-
-**Upgrading from `echo360-dl`.** The package is now called `3ch0`, so uv treats it as a new
-tool. Remove the old one first, then install as above:
-
-```sh
-uv tool uninstall echo360-dl
-uv tool install git+https://github.com/gheatherington/3CH0
-```
-
-Both `3ch0` and `echo360-dl` are installed and run the same program with the same commands,
-options, exit codes and JSON. The per-user data, cache and config folders keep their
-`echo360-dl` names, so the saved login, downloaded models, `ECHO360_DL_HOME` and the resume
-folders (`.echo360-dl-<id>/`) carry over. You don't need to move anything or sign in again.
 
 ## Quick start
 
@@ -485,7 +469,7 @@ From a local copy, use `'.[transcribe]'` or `'.[transcribe-mlx]'` instead.
 - Ctrl-C stops faster-whisper between segments. mlx-whisper has no way to interrupt, so it
   finishes the current file first.
 - Region codes such as `en-CA` are reduced to `en` for the speech model.
-- Models are stored in the per-user cache folder (macOS: `~/Library/Caches/echo360-dl/models/`;
+- Models are stored in the per-user cache folder (macOS: `~/Library/Caches/3ch0/models/`;
   other systems: see [the table under Install](#update-pin-or-uninstall)).
 - Measured here: faster-whisper `tiny` on CPU transcribed a 54-minute lecture in about 2
   minutes on Apple Silicon. Larger models are slower but more accurate.
@@ -518,7 +502,7 @@ How a download is finalised:
   final name.
 - **Existing files**: `--if-exists skip` (default; reported as skipped), `overwrite`, or
   `error`.
-- **Resume**: downloads run in `<output>/.echo360-dl-<id>/`. If a run is cancelled (Ctrl-C) or
+- **Resume**: downloads run in `<output>/.3ch0-<id>/`. If a run is cancelled (Ctrl-C) or
   fails, that folder is kept, and running the same command again reuses finished parts and
   resumes partial ones. It is deleted after a fully successful run (`--keep-work-dir` keeps it).
 - **Retries and concurrency**: `--retries` (default 3) and `--concurrency` (default 2) are
@@ -562,7 +546,7 @@ HTTP 403.
 
 **Normal path: the dedicated browser profile.**
 - `3ch0 auth login` opens a separate Chromium profile kept in your per-user data folder
-  (macOS: `~/Library/Application Support/echo360-dl/browser-profile`; other systems: see
+  (macOS: `~/Library/Application Support/3ch0/browser-profile`; other systems: see
   [the table under Install](#update-pin-or-uninstall)), private to your user. It never touches
   your everyday browser. You complete SSO, MFA and pop-ups yourself; credentials are never
   typed or stored by the tool.
@@ -591,7 +575,7 @@ HTTP 403.
 - **Background traffic**: repeated or unrelated JSON requests (heartbeats, analytics) don't
   hold discovery open.
 - **Browser profile safety**: 3ch0 uses, and `auth logout` deletes, only directories it
-  created (marked with `.echo360-dl-profile`) or the default location. Pointing
+  created (marked with `.3ch0-profile`) or the default location. Pointing
   `--profile-dir` at your everyday Chrome profile is refused.
 
 **Troubleshooting path: a saved request.** In the browser's developer tools, right-click the
@@ -622,11 +606,11 @@ HTTP 403.
 | Linux: Chromium fails to start (missing `.so` libraries) | `"$(uv tool dir)/3ch0/bin/python" -m playwright install --with-deps chromium` |
 | `3ch0: command not found` after installing | Run `uv tool update-shell`, then open a new terminal. |
 | `CERTIFICATE_VERIFY_FAILED` | Use the installed tool (it ships certifi). python.org Python without "Install Certificates" breaks `urllib`. |
-| Dev checkout: `ModuleNotFoundError: echo360_dl` from `uv run` | `~/Documents` is synced by iCloud, which keeps marking `.venv` *hidden*, and Python 3.13 skips hidden `.pth` files. Run `chflags -R nohidden .venv`, or keep the dev environment outside iCloud: `export UV_PROJECT_ENVIRONMENT=~/.venvs/echo360-dl`. The installed tool (`uv tool install .`) is not affected. |
+| Dev checkout: `ModuleNotFoundError: threech0` from `uv run` | `~/Documents` is synced by iCloud, which keeps marking `.venv` *hidden*, and Python 3.13 skips hidden `.pth` files. Run `chflags -R nohidden .venv`, or keep the dev environment outside iCloud: `export UV_PROJECT_ENVIRONMENT=~/.venvs/3ch0`. The installed tool (`uv tool install .`) is not affected. |
 | `auth status` says sign-in "could not be confirmed" | The page loaded, but no Echo360 session cookie was found. Run `3ch0 auth login` again. If it keeps happening, send the `--save-trace` output so the real cookie name can be checked. |
 | `… is not a 3ch0 browser profile` | `--profile-dir` points at a non-empty folder 3ch0 didn't create. Use a new folder, or omit the option. |
 | Inspect shows no title/chapters | Metadata shapes are not yet verified on real lessons (see below). Run `inspect URL --save-trace trace.json` and look at the sanitized trace (URLs without queries, JSON key structure only, no values). |
-| Interrupted download | Run the same command again. It resumes from `<output>/.echo360-dl-<id>/`. |
+| Interrupted download | Run the same command again. It resumes from `<output>/.3ch0-<id>/`. |
 
 ## What has been verified
 
@@ -687,7 +671,7 @@ synthetic media served by a local HLS server that requires cookies):
 
 - Sign-in persistence: after `auth login`, both `auth status` and a headless `inspect` stay
   signed in (session cookie `ECHO_JWT` present). 3ch0 saves and restores the
-  echo360.ca cookies itself (`echo360-dl-session.json`, 0600, inside the 0700 profile),
+  echo360.ca cookies itself (`3ch0-session.json`, 0600, inside the 0700 profile),
   because Chromium does not keep session cookies between launches.
 - This lesson exposes both a captions VTT and an automatic-transcript JSON with the same
   text. When cue timing and text match (≥ 80 %), only one subtitle track is embedded; both
@@ -748,49 +732,20 @@ synthetic media served by a local HLS server that requires cookies):
   previous frame can stay on screen above it: the terminal re-wraps lines that were already
   drawn. Making it wider is clean.
 
-## Compatibility
-
-`download_echo360.py` is now a thin wrapper:
-
-| Old | New |
-| --- | --- |
-| `download_echo360.py URL` | `3ch0 download URL --streams all` |
-| `--list-formats` | `3ch0 inspect URL` |
-| `--output-dir DIR` | `--output DIR` |
-| `--request-file FILE` | `--request-file FILE` (no longer read implicitly from `~/Downloads/work/`) |
-| `--browser-profile DIR` | `--profile-dir DIR` (default moved to the app data dir) |
-| `--fresh` | default (the browser session is used unless `--request-file` is given) |
-
-The original script is kept for reference in `docs/dev/legacy/download_echo360.original.py`.
-
 ## Development
 
 ```zsh
 git clone https://github.com/gheatherington/3CH0 && cd 3CH0
 uv sync --group dev --extra transcribe
-uv run --group dev pytest -q          # ~550 tests, ~35 s, needs ffmpeg
+uv run --group dev pytest -q          # ~540 tests, ~35 s, needs ffmpeg
 uv run --group dev ruff check src tests
-uv run --group dev pytest -m live     # opt-in, needs ECHO360_DL_LIVE_URL and a signed-in profile
-PYTHONPATH=src uv run python -m echo360_dl --help   # run the working copy, not the installed tool
+uv run --group dev pytest -m live     # opt-in, needs THREECH0_LIVE_URL and a signed-in profile
+PYTHONPATH=src uv run python -m threech0 --help   # run the working copy, not the installed tool
 ```
 
-After changing the code, run `uv tool install --reinstall .` to update the installed command
-(the first time after the rename: `uv tool uninstall echo360-dl && uv tool install .`).
+After changing the code, run `uv tool install --reinstall .` to update the installed command.
 The terminal display lives in `cli/`: `theme.py` (styles, labels, glyphs), `telemetry.py`
 (what the pipeline reported and the rates derived from it), `dashboard.py` (the boxed view,
 a pure function), `live.py` (redrawing without flicker), `keys.py` and `progress.py` (the
 live, line and quiet sinks).
 
-**Working with Claude Code** (`CLAUDE.md`, `.claude/`):
-- `CLAUDE.md` holds the project rules: secrets, the observed-vs-hypothesis rule for Echo360
-  data, layering, commands.
-- `/live-test <what to check>` runs a live check against Echo360 through a testing agent. The
-  agent is headless and non-interactive, verifies outputs with ffprobe, scans for leaked
-  secrets and deletes downloaded lecture files.
-- Hooks in `.claude/settings.json`:
-  - one blocks agent tool calls that name the saved request, the browser profile or the
-    session-cookie file;
-  - one runs `ruff check` on every Python file Claude edits.
-
-Architecture: [`docs/architecture.md`](docs/architecture.md). Engineering notes and evidence:
-[`docs/dev/BRIEFING.md`](docs/dev/BRIEFING.md).
