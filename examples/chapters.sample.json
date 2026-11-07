@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "chapters": [
+    {"start": "00:00:00", "title": "Introduction"},
+    {"start": "00:08:30", "title": "Worked example: eigenvalues"},
+    {"start": "00:21:15", "end": "00:40:00", "title": "Diagonalisation — A = PDP⁻¹"},
+    {"start": "00:40:00", "title": "Q&A; next week's reading = §5.3"}
+  ]
+}

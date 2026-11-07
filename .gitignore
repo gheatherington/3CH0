@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Secret-bearing local inputs: never commit captured requests or cookies
+*request*.txt
+*.curl
+cookies*.txt
+*.cookies
+echo-browser/
+
+# Media and work products
+*.mp4
+*.mkv
+*.m4a
+*.part
+.echo360-dl-*/
+
+# Personal Claude Code files
+CLAUDE.local.md
+.claude/settings.local.json

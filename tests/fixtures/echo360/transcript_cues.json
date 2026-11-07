@@ -1,0 +1,12 @@
+{
+  "status": "ok",
+  "data": {
+    "contentJSON": {
+      "cues": [
+        {"startMs": 0, "endMs": 4500, "content": "Welcome to the fictional lecture.", "speaker": "Speaker 1"},
+        {"startMs": 4500, "endMs": 9000, "content": "Today: an imaginary topic."},
+        {"startMs": 9000, "content": "A cue without an end time."}
+      ]
+    }
+  }
+}

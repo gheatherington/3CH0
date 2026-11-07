@@ -1,0 +1,32 @@
+"""Opt-in live check against real echo360.ca (``pytest -m live``).
+
+Needs a signed-in profile (``echo360-dl auth login``) and ``ECHO360_DL_LIVE_URL`` set to a
+classroom URL you can view. Skipped by default (pyproject addopts: ``-m 'not live'``).
+"""
+
+from __future__ import annotations
+
+import os
+
+import pytest
+
+from echo360_dl.echo360.discovery import discover
+from echo360_dl.echo360.urls import parse_classroom_url
+from echo360_dl.models import AccessState, DiscoveryOptions, NullProgress
+
+
+@pytest.mark.live
+def test_live_discovery(tmp_path, monkeypatch):
+    url = os.environ.get("ECHO360_DL_LIVE_URL")
+    if not url:
+        pytest.skip("set ECHO360_DL_LIVE_URL to a classroom URL")
+    monkeypatch.delenv("ECHO360_DL_HOME", raising=False)  # use the real signed-in profile
+    trace = tmp_path / "trace.json"
+    recording, session = discover(parse_classroom_url(url),
+                                  DiscoveryOptions(interactive=False, save_trace=trace),
+                                  NullProgress())
+    try:
+        assert any(s.access is AccessState.AVAILABLE for s in recording.sources)
+        assert trace.exists()
+    finally:
+        session.close()

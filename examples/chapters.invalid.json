@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "chapters": [
+    {"start": "00:10:00", "title": "Starts after the next one"},
+    {"start": "00:05:00", "title": ""},
+    {"start": "-00:00:01", "title": "Negative"}
+  ]
+}

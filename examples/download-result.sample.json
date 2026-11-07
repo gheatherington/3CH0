@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "command": "download",
+  "ok": true,
+  "result": {
+    "status": "ok",
+    "outputs": [
+      {
+        "path": "/Users/you/Downloads/Echo360 lesson [142eba322f] - Source 1.mkv",
+        "kind": "video",
+        "source_index": 1,
+        "language": null,
+        "provenance": "user-file",
+        "skipped_existing": false,
+        "verify": {
+          "ok": true,
+          "duration": 3240.066,
+          "streams": [
+            {
+              "index": 0,
+              "codec_type": "video",
+              "codec_name": "h264",
+              "language": null,
+              "title": null,
+              "default": true,
+              "width": 640,
+              "height": 360,
+              "duration": null,
+              "start_time": 0.066
+            },
+            {
+              "index": 1,
+              "codec_type": "audio",
+              "codec_name": "aac",
+              "language": null,
+              "title": null,
+              "default": true,
+              "width": null,
+              "height": null,
+              "duration": null,
+              "start_time": 0.0
+            },
+            {
+              "index": 2,
+              "codec_type": "subtitle",
+              "codec_name": "webvtt",
+              "language": "eng",
+              "title": "English — generated (local)",
+              "default": false,
+              "width": null,
+              "height": null,
+              "duration": 3240.066,
+              "start_time": 0.0
+            }
+          ],
+          "chapters": [
+            {
+              "start": 0.0,
+              "title": "Introduction",
+              "end": 510.0
+            },
+            {
+              "start": 510.0,
+              "title": "Worked example: eigenvalues",
+              "end": 1275.0
+            },
+            {
+              "start": 1275.0,
+              "title": "Diagonalisation — A = PDP⁻¹",
+              "end": 2400.0
+            },
+            {
+              "start": 2400.0,
+              "title": "Q&A; next week's reading = §5.3",
+              "end": 3240.066
+            }
+          ],
+          "problems": []
+        },
+        "size": 29232632
+      },
+      {
+        "path": "/Users/you/Downloads/Echo360 lesson [142eba322f] - Source 2.mkv",
+        "kind": "video",
+        "source_index": 2,
+        "language": null,
+        "provenance": "user-file",
+        "skipped_existing": false,
+        "verify": {
+          "ok": true,
+          "duration": 3240.066,
+          "streams": [
+            {
+              "index": 0,
+              "codec_type": "video",
+              "codec_name": "h264",
+              "language": null,
+              "title": null,
+              "default": true,
+              "width": 640,
+              "height": 360,
+              "duration": null,
+              "start_time": 0.066
+            },
+            {
+              "index": 1,
+              "codec_type": "audio",
+              "codec_name": "aac",
+              "language": null,
+              "title": null,
+              "default": true,
+              "width": null,
+              "height": null,
+              "duration": null,
+              "start_time": 0.0
+            },
+            {
+              "index": 2,
+              "codec_type": "subtitle",
+              "codec_name": "webvtt",
+              "language": "eng",
+              "title": "English — generated (local)",
+              "default": false,
+              "width": null,
+              "height": null,
+              "duration": 3240.066,
+              "start_time": 0.0
+            }
+          ],
+          "chapters": [
+            {
+              "start": 0.0,
+              "title": "Introduction",
+              "end": 510.0
+            },
+            {
+              "start": 510.0,
+              "title": "Worked example: eigenvalues",
+              "end": 1275.0
+            },
+            {
+              "start": 1275.0,
+              "title": "Diagonalisation — A = PDP⁻¹",
+              "end": 2400.0
+            },
+            {
+              "start": 2400.0,
+              "title": "Q&A; next week's reading = §5.3",
+              "end": 3240.066
+            }
+          ],
+          "problems": []
+        },
+        "size": 38567553
+      },
+      {
+        "path": "/Users/you/Downloads/Echo360 lesson [142eba322f].en.generated.vtt",
+        "kind": "subtitle",
+        "source_index": null,
+        "language": "en",
+        "provenance": "generated-local",
+        "skipped_existing": false,
+        "verify": null,
+        "size": 32381
+      },
+      {
+        "path": "/Users/you/Downloads/Echo360 lesson [142eba322f].en.generated.srt",
+        "kind": "subtitle",
+        "source_index": null,
+        "language": "en",
+        "provenance": "generated-local",
+        "skipped_existing": false,
+        "verify": null,
+        "size": 33981
+      },
+      {
+        "path": "/Users/you/Downloads/Echo360 lesson [142eba322f].en.generated.txt",
+        "kind": "transcript",
+        "source_index": null,
+        "language": "en",
+        "provenance": "generated-local",
+        "skipped_existing": false,
+        "verify": null,
+        "size": 19075
+      },
+      {
+        "path": "/Users/you/Downloads/Echo360 lesson [142eba322f].chapters.json",
+        "kind": "chapters",
+        "source_index": null,
+        "language": null,
+        "provenance": "user-file",
+        "skipped_existing": false,
+        "verify": null,
+        "size": 578
+      }
+    ],
+    "failures": [],
+    "warnings": [
+      "No Echo360 captions or transcript were found for this lesson."
+    ],
+    "lesson_id": "G_11111111-2222-3333-4444-555555555555_66666666-7777-8888-9999-000000000000_2026-01-05T10:30:00.000_2026-01-05T11:20:00.000"
+  }
+}

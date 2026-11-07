@@ -1,0 +1,46 @@
+{
+  "status": "ok",
+  "data": [
+    {
+      "lesson": {
+        "lesson": {
+          "id": "G_11111111-2222-4333-8444-555555555555_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "name": "Fictional Lecture 7: Imaginary Numbers",
+          "createdAt": "2001-01-01T00:00:00.000Z"
+        },
+        "startTimeUTC": "2026-01-15T14:30:00.000Z",
+        "courseName": "FICT 101 - Example Course",
+        "video": {
+          "media": {
+            "mediaId": "99999999-8888-4777-8666-555555555555",
+            "durationMs": 3240000,
+            "sources": [
+              {"uri": "https://content.echo360.ca/0000.00000000-1111-4222-8333-444444444444/99999999-8888-4777-8666-555555555555/1/s1_av.m3u8", "label": "Lecturer camera"},
+              {"uri": "https://content.echo360.ca/0000.00000000-1111-4222-8333-444444444444/99999999-8888-4777-8666-555555555555/1/s2_av.m3u8", "label": "Classroom screen"}
+            ],
+            "captions": [
+              {"language": "en", "label": "English", "url": "https://captions.echo360.ca/fictional/en.vtt"},
+              {"language": "fr-CA", "label": "Français", "url": "https://captions.echo360.ca/fictional/fr.srt"}
+            ],
+            "chapters": [
+              {"title": "Worked example", "startMs": 510000},
+              {"title": "Introduction", "startMs": 0}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "lesson": {
+        "lesson": {
+          "id": "G_99999999-2222-4333-8444-555555555555_aaaaaaaa-bbbb-4ccc-8ddd-000000000000",
+          "name": "Another Fictional Lecture (must not be picked)"
+        },
+        "startTimeUTC": "2026-01-22T14:30:00.000Z",
+        "courseName": "WRONG COURSE",
+        "video": {"media": {"mediaId": "12121212-3434-4565-8787-909090909090",
+                            "chapters": [{"title": "Wrong", "startMs": 0}]}}
+      }
+    }
+  ]
+}

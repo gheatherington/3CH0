@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "command": "inspect",
+  "ok": true,
+  "recording": {
+    "lesson_id": "G_11111111-2222-3333-4444-555555555555_66666666-7777-8888-9999-000000000000_2026-01-05T10:30:00.000_2026-01-05T11:20:00.000",
+    "classroom_url": "https://echo360.ca/lesson/G_11111111-2222-3333-4444-555555555555_66666666-7777-8888-9999-000000000000_2026-01-05T10:30:00.000_2026-01-05T11:20:00.000/classroom",
+    "host": "echo360.ca",
+    "media_id": "aaaaaaaa-0000-4000-8000-000000000001",
+    "institution_id": "aaaaaaaa-0000-4000-8000-000000000000",
+    "title": null,
+    "course": null,
+    "recorded_at": null,
+    "duration": null,
+    "sources": [
+      {
+        "index": 1,
+        "playlist_url": "https://content.echo360.ca/0000.aaaaaaaa-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000001/1/s1_av.m3u8",
+        "renditions": [
+          {
+            "id": "s1q0",
+            "url": "https://content.echo360.ca/0000.aaaaaaaa-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000001/1/s1q0.m3u8",
+            "width": 640,
+            "height": 360,
+            "bandwidth": 93350,
+            "average_bandwidth": 25941,
+            "codecs": "avc1.640029,mp4a.40.2",
+            "frame_rate": 30.0,
+            "audio_group": "q0",
+            "resolution": "640x360"
+          },
+          {
+            "id": "s1q1",
+            "url": "https://content.echo360.ca/0000.aaaaaaaa-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000001/1/s1q1.m3u8",
+            "width": 1280,
+            "height": 720,
+            "bandwidth": 272955,
+            "average_bandwidth": 67684,
+            "codecs": "avc1.640029,mp4a.40.2",
+            "frame_rate": 30.0,
+            "audio_group": "q1",
+            "resolution": "1280x720"
+          }
+        ],
+        "label": null,
+        "label_method": null,
+        "method": "naming-probe",
+        "access": "available",
+        "access_detail": null,
+        "audio_track_id": "s0",
+        "display_name": "Source 1"
+      },
+      {
+        "index": 2,
+        "playlist_url": "https://content.echo360.ca/0000.aaaaaaaa-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000001/1/s2_av.m3u8",
+        "renditions": [
+          {
+            "id": "s2q0",
+            "url": "https://content.echo360.ca/0000.aaaaaaaa-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000001/1/s2q0.m3u8",
+            "width": 640,
+            "height": 360,
+            "bandwidth": 241532,
+            "average_bandwidth": 48923,
+            "codecs": "avc1.640029,mp4a.40.2",
+            "frame_rate": 30.0,
+            "audio_group": "q0",
+            "resolution": "640x360"
+          },
+          {
+            "id": "s2q1",
+            "url": "https://content.echo360.ca/0000.aaaaaaaa-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000001/1/s2q1.m3u8",
+            "width": 1280,
+            "height": 720,
+            "bandwidth": 940724,
+            "average_bandwidth": 226367,
+            "codecs": "avc1.640029,mp4a.40.2",
+            "frame_rate": 30.0,
+            "audio_group": "q1",
+            "resolution": "1280x720"
+          }
+        ],
+        "label": null,
+        "label_method": null,
+        "method": "user-input",
+        "access": "available",
+        "access_detail": null,
+        "audio_track_id": "s0",
+        "display_name": "Source 2"
+      }
+    ],
+    "audio_tracks": [
+      {
+        "id": "s0",
+        "renditions": [
+          {
+            "id": "s0q0",
+            "url": "https://content.echo360.ca/0000.aaaaaaaa-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000001/1/s0q0.m3u8",
+            "group_id": "q0",
+            "name": "Default",
+            "language": null,
+            "default": true,
+            "bandwidth": null
+          },
+          {
+            "id": "s0q1",
+            "url": "https://content.echo360.ca/0000.aaaaaaaa-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000001/1/s0q1.m3u8",
+            "group_id": "q1",
+            "name": "Default",
+            "language": null,
+            "default": true,
+            "bandwidth": null
+          }
+        ],
+        "language": null,
+        "shared": true,
+        "used_by_sources": [
+          1,
+          2
+        ]
+      }
+    ],
+    "captions": [],
+    "chapters": null,
+    "notes": [
+      {
+        "level": "info",
+        "message": "Request-file mode: lesson metadata, transcripts and chapters are unavailable.",
+        "observed": true
+      },
+      {
+        "level": "info",
+        "message": "Source 3: could not access (403 does not prove absence).",
+        "observed": true
+      },
+      {
+        "level": "info",
+        "message": "Source 4: could not access (403 does not prove absence).",
+        "observed": true
+      },
+      {
+        "level": "info",
+        "message": "Fallback: probed sibling playlist name(s) s1_av, s3_av, s4_av by naming convention.",
+        "observed": false
+      }
+    ],
+    "discovered_at": 1767609000.0
+  }
+}

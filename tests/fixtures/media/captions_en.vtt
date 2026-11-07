@@ -1,0 +1,18 @@
+WEBVTT
+Kind: captions
+Language: en
+
+STYLE
+::cue { color: yellow; }
+
+NOTE Synthetic captions for echo360-dl tests (no real lesson content).
+
+intro
+00:00:01.000 --> 00:00:02.500 align:start
+<v Dr. Alice Smith>Welcome &amp; hello — café</v>
+
+00:00:03.000 --> 00:00:04.000
+<v Bob>Limits &lt;of&gt; functions
+
+00:00:04.500 --> 00:00:05.500
+Plain cue with <i>italics</i>
