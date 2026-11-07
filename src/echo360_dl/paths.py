@@ -14,6 +14,8 @@ from pathlib import Path
 
 from platformdirs import PlatformDirs
 
+#: Directory name under the platform data/cache/config dirs. Kept as "echo360-dl" after the
+#: rename to 3CH0 so the saved browser login, models and traces stay where they are.
 APP_NAME = "echo360-dl"
 
 
@@ -76,16 +78,16 @@ def is_own_profile(path: Path) -> bool:
 def prepare_profile_dir(path: Path) -> Path:
     """Create/validate a dedicated browser profile directory (0700, marked as ours).
 
-    Raises ValueError for an existing non-empty directory that echo360-dl did not create
+    Raises ValueError for an existing non-empty directory that 3ch0 did not create
     (for example a real Chrome profile passed via ``--profile-dir``).
     """
     path = Path(path).expanduser()
     if path.exists() and (not path.is_dir() or (any(path.iterdir())
                                                 and not is_own_profile(path))):
-        raise ValueError(f"{path} is not an echo360-dl browser profile")
+        raise ValueError(f"{path} is not a 3ch0 browser profile")
     ensure_private_dir(path)
     marker = path / PROFILE_MARKER
     if not marker.exists():
-        marker.write_text("Dedicated echo360-dl browser profile. Safe to delete with "
-                          "`echo360-dl auth logout`.\n", encoding="utf-8")
+        marker.write_text("Dedicated 3ch0 browser profile. Safe to delete with "
+                          "`3ch0 auth logout`.\n", encoding="utf-8")
     return path

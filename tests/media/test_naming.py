@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 import unicodedata
+from pathlib import Path
 
 import pytest
 
 from echo360_dl.media.naming import (
+    BASE_BUDGET,
     MAX_NAME_BYTES,
     language_tag,
     lesson_basename,
     media_basename,
+    request_basename,
+    request_media_basename,
     safe_component,
+    single_media_output,
     truncate_utf8,
     with_suffix,
 )
-from echo360_dl.models import Recording
+from echo360_dl.models import DownloadRequest, Layout, Recording
 
 
 def _rec(**kw) -> Recording:
@@ -116,3 +121,38 @@ def test_long_labels_never_shorten_the_title():
     very_long = _rec(title="Ü" * 300, course="C" * 100, recorded_at="2026-01-01")
     name = media_basename(very_long, "Source 1 + Source 2 (side by side)")
     assert len((name + ".mkv").encode()) <= MAX_NAME_BYTES and name.endswith("(side by side)")
+
+
+def _req(rec: Recording, **kw) -> DownloadRequest:
+    return DownloadRequest(recording=rec, output_dir=Path("/out"), **kw)
+
+
+@pytest.mark.parametrize("kw, single", [
+    (dict(source_indexes=(1,)), True),
+    (dict(audio_only=True), True),
+    (dict(source_indexes=(1, 2)), False),
+    (dict(source_indexes=(1, 2), layout=Layout.SIDE_BY_SIDE), True),
+    (dict(source_indexes=(1, 2), layout=Layout.TOP_BOTTOM, keep_separate=True), False),
+])
+def test_custom_name(kw, single):
+    rec = _rec(title="Limits", course="MATH 101")
+    req = _req(rec, name="Week 3: Limits", **kw)
+    assert request_basename(req) == "Week 3 - Limits"
+    assert single_media_output(req) is single
+    expected = "Week 3 - Limits" if single else "Week 3 - Limits - Source 1"
+    assert request_media_basename(req, "Source 1") == expected
+
+
+def test_no_custom_name_keeps_lesson_naming():
+    rec = _rec(title="Limits", course="MATH 101")
+    req = _req(rec, source_indexes=(1,))
+    assert request_basename(req) == lesson_basename(rec)
+    assert request_media_basename(req, "Source 1") == media_basename(rec, "Source 1")
+
+
+def test_custom_name_is_made_safe_and_capped():
+    rec = _rec()
+    req = _req(rec, source_indexes=(1, 2), name="../" + "é" * 300)
+    base = request_basename(req)
+    assert "/" not in base and len(base.encode()) <= BASE_BUDGET
+    assert len((request_media_basename(req, "Source 2") + ".mp4").encode()) <= MAX_NAME_BYTES

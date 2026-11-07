@@ -1,5 +1,8 @@
 """Rich renderables for human output. Pure functions: models in, renderables out.
 
+Every view follows the 3CH0 system in :mod:`echo360_dl.cli.theme`: a two-space margin,
+small uppercase labels in a fixed column, normal-case values, no boxes.
+
 All user/platform-provided strings are wrapped in :class:`rich.text.Text` (never
 interpreted as markup) and free text is passed through :func:`redact.scrub`.
 Tables fold or wrap at narrow widths instead of overflowing.
@@ -7,16 +10,28 @@ Tables fold or wrap at narrow widths instead of overflowing.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 from datetime import datetime
+from pathlib import Path
 
 from rich.console import Group, RenderableType
-from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from echo360_dl.cli.output import UI, fmt_bytes
-from echo360_dl.cli.theme import Glyphs, status_block, status_label, wordmark
+from echo360_dl.cli.output import UI, fmt_bytes, fmt_clock, fmt_rate
+from echo360_dl.cli.telemetry import Snapshot
+from echo360_dl.cli.theme import (
+    COMMAND,
+    Glyphs,
+    boxed,
+    label_grid,
+    margin,
+    section_label,
+    status_block,
+    status_label,
+    wordmark,
+)
 from echo360_dl.errors import QualityUnavailableError, UnavailableError
 from echo360_dl.models import (
     AccessState,
@@ -140,22 +155,22 @@ def video_codecs(src: VideoSource, g: Glyphs) -> str:
 
 
 def kv_grid(rows: Iterable[tuple[str, RenderableType | str | None]]) -> Table:
-    grid = Table.grid(padding=(0, 2))
-    grid.add_column(style="label", no_wrap=True)
-    grid.add_column(overflow="fold")
+    """Uppercase labels in the fixed label column, values folding beside them."""
+    grid = label_grid()
     for label, value in rows:
         if value is None:
             continue
-        grid.add_row(Text(label, style="label"), value if not isinstance(value, str) else T(value))
+        grid.add_row(section_label(label), value if not isinstance(value, str) else T(value))
     return grid
 
 
 def data_table(ui: UI, *headers: str, title: str | None = None) -> Table:
-    table = Table(box=ui.glyphs.table_box, header_style="heading", title=title,
-                  title_style="heading", title_justify="left", show_edge=False,
-                  pad_edge=False, expand=False, safe_box=True)
+    """A borderless table: muted uppercase headers, whitespace between columns."""
+    table = Table(box=None, header_style="label", title=title.upper() if title else None,
+                  title_style="label", title_justify="left", show_edge=False,
+                  pad_edge=False, expand=False, padding=(0, 2, 0, 0))
     for header in headers:
-        table.add_column(header, overflow="fold")
+        table.add_column(header.upper(), overflow="fold")
     return table
 
 
@@ -191,6 +206,7 @@ def sources_table(rec: Recording, ui: UI) -> Table:
         return sources_stacked(rec, ui)
     g = ui.glyphs
     table = data_table(ui, "#", "Source", "Resolutions", "Codec", "Audio", "Access")
+    table.columns[0].justify = "right"
     for src in sorted(rec.sources, key=lambda s: s.index):
         name = T(src.display_name)
         if src.label is None:
@@ -272,36 +288,32 @@ def notes_block(rec: Recording, g: Glyphs) -> Group | None:
         if not note.observed:
             line.append(" (unverified)", style="warn")
         grid.add_row(Text(g.bullet, style="warn" if note.level == "warning" else "muted"), line)
-    return Group(Text("Discovery notes", style="heading"), grid)
+    return Group(grid)
 
 
-def inspect_view(rec: Recording, ui: UI) -> Group:
+def inspect_view(rec: Recording, ui: UI) -> RenderableType:
     g = ui.glyphs
     parts: list[RenderableType] = []
     head = header_line(ui, "inspect")
     if head is not None:
-        parts.append(head)
-    parts.append(recording_header(rec, ui))
-    parts.append(Text(""))
-    if rec.sources:
-        parts.append(sources_table(rec, ui))
-    else:
-        parts.append(Text("No video sources discovered.", style="warn"))
-    parts.append(Text(""))
+        parts.extend([head, Text("")])
+    parts.append(boxed("Lesson", recording_header(rec, ui), g))
+    parts.append(boxed("Sources", sources_table(rec, ui) if rec.sources else
+                       Text("No video sources discovered.", style="warn"), g))
     caption_rows: list[RenderableType]
     if rec.captions:
         caption_rows = [caption_line(c, g) for c in rec.captions]
     else:
         caption_rows = [Text("No platform transcript found", style="muted")]
-    parts.append(kv_grid([
+    parts.append(boxed("Media", kv_grid([
         ("Audio", audio_summary(rec, g)),
         ("Captions", Group(*caption_rows)),
         ("Chapters", chapters_summary(rec.chapters)),
-    ]))
+    ]), g))
     notes = notes_block(rec, g)
     if notes is not None:
-        parts.extend([Text(""), notes])
-    return Group(*parts)
+        parts.append(boxed("Notes", notes, g))
+    return margin(Group(*parts))
 
 
 # --------------------------------------------------------------------------------------
@@ -391,7 +403,7 @@ def _files_plan(req: DownloadRequest, g: Glyphs) -> Text:
     rec = req.recording
     lines: list[str] = []
     if req.audio_only:
-        lines.append(naming.media_basename(rec, None) + ".m4a")
+        lines.append(naming.request_media_basename(req, None) + ".m4a")
 
     def name_of(index: int) -> str:
         src = rec.source(index)
@@ -404,12 +416,12 @@ def _files_plan(req: DownloadRequest, g: Glyphs) -> Text:
         first, second = composite_pair(req.source_indexes, req.layout_order)
         arrangement = "side by side" if req.layout is Layout.SIDE_BY_SIDE else "top-bottom"
         label = f"{name_of(first)} + {name_of(second)} ({arrangement})"
-        lines.append(f"{naming.media_basename(rec, label)}.{ext}")
+        lines.append(f"{naming.request_media_basename(req, label)}.{ext}")
     if not composite or req.keep_separate:
         for index in req.source_indexes:
-            lines.append(f"{naming.media_basename(rec, name_of(index))}.{ext}")
+            lines.append(f"{naming.request_media_basename(req, name_of(index))}.{ext}")
     if req.write_sidecars:
-        lines.append(f"sidecars: {naming.lesson_basename(rec)}.<lang>.vtt/.srt/.txt, "
+        lines.append(f"sidecars: {naming.request_basename(req)}.<lang>.vtt/.srt/.txt, "
                      ".chapters.json (when present)")
     lines.append(f"existing files: {req.if_exists.value}")
     return T("\n".join(lines))
@@ -429,7 +441,7 @@ def _layout_plan(req: DownloadRequest) -> Text:
     return T(text)
 
 
-def plan_panel(req: DownloadRequest, ui: UI) -> Panel:
+def plan_view(req: DownloadRequest, ui: UI) -> RenderableType:
     g = ui.glyphs
     rec = req.recording
     if req.audio_only:
@@ -453,11 +465,10 @@ def plan_panel(req: DownloadRequest, ui: UI) -> Panel:
         ("Chapters", _chapter_plan(req, g)),
         ("Layout", _layout_plan(req)),
         ("Container", req.container.value),
-        ("Output", T(str(req.output_dir), "path")),
+        ("Target", T(str(req.output_dir), "path")),
         ("Files", _files_plan(req, g)),
     ])
-    return Panel(grid, title=Text("Download plan", style="heading"), title_align="left",
-                 box=g.panel_box, border_style="muted", expand=False, padding=(0, 1))
+    return margin(Group(Text(""), boxed("Download plan", grid, g)))
 
 
 # --------------------------------------------------------------------------------------
@@ -498,14 +509,21 @@ def _size(out: OutputFile) -> int | None:
         return None
 
 
-def outputs_table(result: DownloadResult, ui: UI) -> Table:
+def _common_dir(outputs: Sequence[OutputFile]) -> Path | None:
+    parents = {out.path.parent for out in outputs}
+    return parents.pop() if len(parents) == 1 else None
+
+
+def outputs_table(result: DownloadResult, ui: UI, base: Path | None = None) -> Table:
+    """One row per output: kind, file name (relative to ``base``), then its details."""
     g = ui.glyphs
     table = Table.grid(padding=(0, 2))
-    table.add_column(style="accent", no_wrap=True)
+    table.add_column(no_wrap=True)
     table.add_column(overflow="fold")
     for out in result.outputs:
         line = Text()
-        line.append(str(out.path), style="path")
+        name = out.path.name if base is not None and out.path.parent == base else str(out.path)
+        line.append(name, style="path")
         size = _size(out)
         details = [fmt_bytes(size)] if size is not None else []
         if out.language:
@@ -519,37 +537,116 @@ def outputs_table(result: DownloadResult, ui: UI) -> Table:
             details.append("existing file kept")
         if details:
             line.append("\n" + g.sep.join(scrub(d) for d in details), style="muted")
-        kind = out.kind.value
-        table.add_row(Text(kind, style="warn" if out.verify and not out.verify.ok else "accent"),
-                      line)
+        failed = out.verify is not None and not out.verify.ok
+        table.add_row(Text(out.kind.value, style="warn" if failed else "accent"), line)
     return table
 
 
-def result_view(result: DownloadResult, ui: UI) -> Group:
-    status_words = {
-        ResultStatus.OK: ("OK", "Download complete"),
-        ResultStatus.PARTIAL: ("PARTIAL", "Download partly complete"),
-        ResultStatus.FAILED: ("FAILED", "Download failed"),
-        ResultStatus.CANCELLED: ("CANCELLED", "Download cancelled"),
-    }
-    label, words = status_words[result.status]
+def transfer_summary(snap: Snapshot | None, g: Glyphs) -> Text | None:
+    """Measured transfer totals for the summary; None when nothing was measured."""
+    if snap is None:
+        return None
+    rates, agg = snap.rates, snap.aggregate
+    parts: list[str] = []
+    if rates.transferred > 0:
+        text = f"{fmt_bytes(rates.transferred)} transferred"
+        if rates.span is not None and rates.span >= 1:
+            text += f" in {fmt_clock(rates.span)}"
+        parts.append(text)
+        if rates.average is not None:
+            parts.append(f"average {fmt_rate(rates.average)}")
+        if rates.peak is not None:
+            parts.append(f"peak {fmt_rate(rates.peak)}")
+    if agg.reused:
+        parts.append(f"{fmt_bytes(agg.reused)} reused from an earlier run")
+    return T(g.sep.join(parts)) if parts else None
+
+
+_RESULT_WORDS = {
+    ResultStatus.OK: ("OK", "Download complete"),
+    ResultStatus.PARTIAL: ("PARTIAL", "Download partly complete"),
+    ResultStatus.FAILED: ("FAILED", "Download failed"),
+    ResultStatus.CANCELLED: ("CANCELLED", "Download cancelled"),
+}
+
+
+def result_view(result: DownloadResult, ui: UI, snapshot: Snapshot | None = None,
+                extra_warnings: Sequence[str] = ()) -> RenderableType:
+    """The durable end-of-command summary. ``extra_warnings`` are progress warnings
+    not yet printed (the live view); repeats of failures/warnings are left out."""
+    g = ui.glyphs
+    label, words = _RESULT_WORDS[result.status]
     head = status_label(label)
     count = len(result.outputs)
-    head.append(f" {words}{ui.glyphs.sep}{count} output{'s' if count != 1 else ''}")
-    parts: list[RenderableType] = [head]
+    head.append(f" {words}{g.sep}{count} output{'s' if count != 1 else ''}")
+    base = _common_dir(result.outputs)
+    grid = label_grid()
+    grid.add_row(section_label("Status"), head)
+    if base is not None:
+        grid.add_row(section_label("Target"), T(str(base), "path"))
     if result.outputs:
-        parts.append(outputs_table(result, ui))
+        grid.add_row(section_label("Outputs"), outputs_table(result, ui, base))
+    transfer = transfer_summary(snapshot, g)
+    if transfer is not None:
+        grid.add_row(section_label("Transfer"), transfer)
+    if snapshot is not None and ui.live:
+        grid.add_row(section_label("Time"), T(f"{fmt_clock(snapshot.elapsed)} elapsed"))
+    boxes: list[RenderableType] = [boxed("Summary", grid, g)]
     if result.failures:
-        parts.append(Text("Failures", style="heading"))
+        blocks = []
         for f in result.failures:
-            message = (f"{scrub(f.step)}{ui.glyphs.sep}{scrub(f.target)} {ui.glyphs.dash} "
+            message = (f"{scrub(f.step)}{g.sep}{scrub(f.target)} {g.dash} "
                        f"{scrub(f.message)}")
-            parts.append(status_block("FAIL", message, scrub(f.hint) if f.hint else None))
-    if result.warnings:
-        parts.append(Text("Warnings", style="heading"))
-        for w in result.warnings:
-            parts.append(status_block("WARN", scrub(w)))
-    return Group(*parts)
+            blocks.append(status_block("FAIL", message, scrub(f.hint) if f.hint else None))
+        boxes.append(boxed("Failures", Group(*blocks), g, style="error"))
+    warnings = [scrub(w) for w in result.warnings]
+    known = set(warnings) | {f"{scrub(f.target)}: {scrub(f.message)}" for f in result.failures}
+    earlier: list[str] = []
+    for extra in extra_warnings:
+        text = scrub(extra)
+        if text not in known:
+            known.add(text)
+            earlier.append(text)
+    warnings = earlier + warnings
+    if warnings:
+        boxes.append(boxed("Warnings", Group(*[status_block("WARN", w) for w in warnings]), g,
+                           style="warn"))
+    parts: list[RenderableType] = []
+    head_line = header_line(ui, "download")
+    if head_line is not None:
+        parts.extend([Text(""), head_line])
+    parts.extend(boxes)
+    return margin(Group(*parts))
+
+
+def stream_details(rec: Recording, g: Glyphs) -> dict[str, tuple[str, str]]:
+    """(format, codec) per download task id, from the playlists' published attributes.
+
+    Task ids are ``download:<kind>-<rendition id>`` (see ``media.download``). Audio codecs
+    come from the CODECS attribute of the video variants paired with that audio group.
+    """
+    def key(kind: str, rendition_id: str) -> str:
+        return f"download:{kind}-" + (re.sub(r"[^A-Za-z0-9_-]", "_", rendition_id) or "media")
+
+    details: dict[str, tuple[str, str]] = {}
+    audio_codecs: dict[str, str] = {}
+    for src in rec.sources:
+        for r in src.renditions:
+            names = codec_names(r.codecs)
+            video = [n for n in names if n in _VIDEO_CODECS]
+            audio = [n for n in names if n not in _VIDEO_CODECS]
+            if r.audio_group and audio:
+                audio_codecs.setdefault(r.audio_group, audio[0])
+            fmt = f"{r.width}{g.times}{r.height}" if r.width and r.height else (
+                f"{r.height}p" if r.height else g.dash)
+            if r.frame_rate:
+                fmt += f"{g.sep}{r.frame_rate:g}"
+            details[key("video", r.id)] = (fmt, video[0] if video else g.dash)
+    for track in rec.audio_tracks:
+        for a in track.renditions:
+            fmt = f"{a.bandwidth / 1000:.0f} kb/s" if a.bandwidth else g.dash
+            details[key("audio", a.id)] = (fmt, audio_codecs.get(a.group_id or "", g.dash))
+    return details
 
 
 # --------------------------------------------------------------------------------------
@@ -557,7 +654,7 @@ def result_view(result: DownloadResult, ui: UI) -> Group:
 # --------------------------------------------------------------------------------------
 
 
-def auth_status_view(status: AuthStatus, ui: UI) -> Group:
+def auth_status_view(status: AuthStatus, ui: UI) -> RenderableType:
     if status.logged_in is True:
         head = status_label("OK")
         head.append(" Logged in")
@@ -568,15 +665,15 @@ def auth_status_view(status: AuthStatus, ui: UI) -> Group:
         head = status_label("WARN")
         head.append(" Login state unknown")
     rows = kv_grid([
+        ("Login", head),
         ("Host", status.host),
         ("Profile", T(str(status.profile_dir) + ("" if status.profile_exists else
                                                   " (does not exist)"), "path")),
         ("Detail", status.detail),
+        ("Next", None if status.logged_in is True else
+         Text(f"Run `{COMMAND} auth login` to sign in.", style="muted")),
     ])
-    parts: list[RenderableType] = [head, rows]
-    if status.logged_in is not True:
-        parts.append(Text("Run `echo360-dl auth login` to sign in.", style="muted"))
-    return Group(*parts)
+    return margin(boxed("Login", rows, ui.glyphs))
 
 
 def resolve_chapter_ends(chapters: Sequence[Chapter], duration: float | None

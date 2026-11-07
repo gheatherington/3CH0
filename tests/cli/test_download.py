@@ -53,7 +53,7 @@ def test_login_required_non_interactive_exit_3_without_login(fake, extra):
     result = invoke(["download", URL, "--streams", "all", *extra])
     assert result.exit_code == 3
     text = result.stdout + result.stderr
-    assert "echo360-dl auth login" in text
+    assert "3ch0 auth login" in text
     assert fake.login_calls == []
     assert fake.discover_calls[0][1].interactive is False
     assert fake.requests == []
@@ -66,8 +66,9 @@ def test_example_all_best_auto_output(fake):
     (req,) = fake.requests
     # Source 2 of the fake recording is FORBIDDEN: "all" skips it with a warning.
     assert req.source_indexes == (1,)
-    assert "Skipping Source 2: forbidden" in result.stderr
-    assert "--streams 2" in result.stderr
+    flat = " ".join(result.stderr.split())
+    assert "Skipping Source 2: forbidden" in flat
+    assert "--streams 2" in flat
     assert req.audio_only is False
     assert req.quality.kind == "best"
     assert req.subtitles.kind is SubtitleModeKind.AUTO
@@ -166,7 +167,7 @@ def test_human_report_and_plan(fake):
     assert result.exit_code == 0
     err = result.stderr
     assert_clean(err)
-    assert "Download plan" in err
+    assert "DOWNLOAD PLAN" in err
     assert "720p (1280x720)" in err
     assert "shared track, downloaded once" in err
     assert "en (platform captions)" in err
@@ -177,6 +178,32 @@ def test_human_report_and_plan(fake):
     assert "27.0 MB" in err
 
 
+@pytest.mark.parametrize("value, expected", [
+    ("Week 3", "Week 3"), ("Week 3.mp4", "Week 3"), ("  Lecture.MKV ", "Lecture"),
+])
+def test_name_maps_to_request_and_plan(fake, value, expected):
+    result = invoke(["download", URL, "--streams", "1", "--name", value])
+    assert result.exit_code == 0, result.stderr
+    assert fake.requests[0].name == expected
+    assert f"{expected}.mp4" in result.stderr
+    assert f"sidecars: {expected}.<lang>" in result.stderr
+
+
+def test_no_name_keeps_default(fake):
+    assert invoke(["download", URL, "--streams", "1"]).exit_code == 0
+    assert fake.requests[0].name is None
+
+
+@pytest.mark.parametrize("value, fragment", [
+    ("sub/dir", "not a path"), ("a\\b", "not a path"), ("..", "no usable"), ("  ", "no usable"),
+])
+def test_bad_name_is_usage_error(fake, value, fragment):
+    result = invoke(["download", URL, "--streams", "1", "--name", value])
+    assert result.exit_code == 2
+    assert fragment in result.stderr
+    assert fake.requests == []
+
+
 def test_json_download_result(fake):
     result = invoke(["download", URL, "--streams", "1", "--json"])
     assert result.exit_code == 0
@@ -185,7 +212,7 @@ def test_json_download_result(fake):
     assert doc["result"]["status"] == "ok"
     assert doc["result"]["outputs"][0]["kind"] == "video"
     assert_clean(result.stdout + result.stderr)
-    assert "Download plan" not in result.stderr
+    assert "DOWNLOAD PLAN" not in result.stderr
 
 
 def _partial(request):
@@ -204,8 +231,9 @@ def test_partial_result_exit_5_lists_outputs(fake, tmp_path):
     result = invoke(["download", URL, "--streams", "all", "-o", str(tmp_path)])
     assert result.exit_code == 5
     err = result.stderr
-    flat = "".join(err.split())
-    assert "".join(str(tmp_path / "Lecture-7-s1.mp4").split()) in flat
+    flat = "".join(err.replace("│", "").split())  # undo wrapping inside box borders
+    assert "TARGET" in err and "".join(str(tmp_path).split()) in flat  # destination
+    assert "Lecture-7-s1.mp4" in flat
     assert "[PARTIAL]" in err and "1 output" in err
     assert "Source 2" in err and "may not exist" in err
     assert "Native chapters were overridden" in err
@@ -274,10 +302,10 @@ def test_verbose_debug_lines_scrubbed(fake):
 def test_progress_stages_in_order(fake):
     result = invoke(["download", URL, "--streams", "1"])
     err = result.stderr
-    positions = [err.index(f"] {stage}") for stage in ("discover", "select", "download",
-                                                         "verify")]
+    positions = [err.index(f"STAGE     {n}/6 {stage}") for n, stage in (
+        (1, "discover"), (2, "select"), (3, "download"), (6, "verify"))]
     assert positions == sorted(positions)
-    assert "\r" not in err
+    assert "\r" not in err and "\x1b" not in err  # redirected: plain sequential lines
 
 
 # -- interactive flow ---------------------------------------------------------------------
@@ -301,7 +329,7 @@ def test_interactive_pick(two_available, tty, answer, indexes, audio_only):
     result = invoke(["download", URL], input=f"{answer}\n{layout_answer}y\n")
     assert result.exit_code == 0, result.stderr
     assert "Download which sources?" in result.stderr
-    assert "Download plan" in result.stderr
+    assert "DOWNLOAD PLAN" in result.stderr
     assert "Start download?" in result.stderr
     (req,) = two_available.requests
     assert req.source_indexes == indexes

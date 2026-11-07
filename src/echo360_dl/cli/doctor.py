@@ -1,4 +1,4 @@
-"""``echo360-dl doctor``: environment checks with OK/WARN/FAIL and a fix hint each.
+"""``3ch0 doctor``: environment checks with OK/WARN/FAIL and a fix hint each.
 
 FAIL means a required piece is missing or broken (exit code 6). WARN is advisory
 (e.g. no browser profile yet, no optional transcription backend).
@@ -14,13 +14,13 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from rich.console import Group
+from rich.console import Group, RenderableType
 from rich.table import Table
 from rich.text import Text
 
 from echo360_dl.cli.output import UI
-from echo360_dl.cli.render import NARROW, data_table
-from echo360_dl.cli.theme import status_label
+from echo360_dl.cli.render import NARROW, data_table, header_line
+from echo360_dl.cli.theme import boxed, label_grid, margin, section_label, status_label
 from echo360_dl.redact import scrub
 from echo360_dl.services import Services
 
@@ -92,9 +92,9 @@ def check_browser(services: Services) -> Check:
 def check_profile(profile_dir: Path) -> Check:
     if profile_dir.is_dir():
         return Check("Browser profile", "OK", f"{profile_dir}",
-                     "Check the saved login with: echo360-dl auth status")
+                     "Check the saved login with: 3ch0 auth status")
     return Check("Browser profile", "WARN", f"{profile_dir} (not created yet)",
-                 "Sign in once with: echo360-dl auth login")
+                 "Sign in once with: 3ch0 auth login")
 
 
 def check_output_dir(path: Path) -> Check:
@@ -151,7 +151,7 @@ def run_checks(services: Services, *, output_dir: Path, profile_dir: Path) -> li
     return checks
 
 
-def doctor_view(checks: list[Check], ui: UI) -> Group:
+def doctor_view(checks: list[Check], ui: UI) -> RenderableType:
     table: Table
     if ui.err.width < NARROW:
         table = Table.grid(padding=(0, 1))
@@ -175,4 +175,11 @@ def doctor_view(checks: list[Check], ui: UI) -> Group:
     summary = status_label("FAIL" if fails else ("WARN" if warns else "OK"))
     summary.append(f" {fails} failed{ui.glyphs.sep}{warns} warning(s){ui.glyphs.sep}"
                    f"{len(checks) - fails - warns} ok")
-    return Group(table, summary)
+    result = label_grid()
+    result.add_row(section_label("Result"), summary)
+    parts: list[RenderableType] = []
+    head = header_line(ui, "doctor")
+    if head is not None:
+        parts.extend([head, Text("")])
+    parts.extend([boxed("Checks", table, ui.glyphs), result])
+    return margin(Group(*parts))

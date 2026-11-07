@@ -26,7 +26,7 @@ from echo360_dl.models import AccessState, AuthContext, CaptionTrack, Transcript
 from echo360_dl.redact import scrub
 
 MAX_REFRESHES = 2
-LOGIN_HINT = "Run: echo360-dl auth login"
+LOGIN_HINT = "Run: 3ch0 auth login"
 REQUEST_FILE_REASON = ("Authorization came from a saved request file, which cannot be "
                        "refreshed. Save a new request, or use browser sign-in instead.")
 _FORMAT_PREFERENCE = ("vtt", "srt", "json", "txt")

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Compatibility entry point for the original ``download_echo360.py`` script.
 
-The implementation now lives in the ``echo360_dl`` package (``echo360-dl`` command).
+The implementation now lives in the ``echo360_dl`` package (``3ch0`` command, formerly
+``echo360-dl``, which is still installed as an alias).
 Old flags are translated as follows:
 
-    download_echo360.py URL                  -> echo360-dl download URL --streams all
+    download_echo360.py URL                  -> 3ch0 download URL --streams all
     --output-dir DIR                         -> --output DIR
     --request-file FILE                      -> --auth request-file --request-file FILE
     --browser-profile DIR                    -> --profile-dir DIR
     --timeout N                              -> --timeout N
-    --list-formats                           -> echo360-dl inspect URL
+    --list-formats                           -> 3ch0 inspect URL
     --fresh                                  -> (default: the browser session is always used
                                                  unless --request-file is given)
 

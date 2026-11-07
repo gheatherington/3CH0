@@ -7,6 +7,58 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "3ch0"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "certifi" },
+    { name = "httpx" },
+    { name = "platformdirs" },
+    { name = "playwright" },
+    { name = "rich" },
+    { name = "typer" },
+    { name = "yt-dlp" },
+]
+
+[package.optional-dependencies]
+transcribe = [
+    { name = "av" },
+    { name = "faster-whisper" },
+]
+transcribe-mlx = [
+    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-timeout" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "av", marker = "extra == 'transcribe'", specifier = "<17" },
+    { name = "certifi", specifier = ">=2024.8.30" },
+    { name = "faster-whisper", marker = "extra == 'transcribe'", specifier = ">=1.1" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'transcribe-mlx'", specifier = ">=0.4" },
+    { name = "platformdirs", specifier = ">=4.3" },
+    { name = "playwright", specifier = ">=1.49" },
+    { name = "rich", specifier = ">=13.9" },
+    { name = "typer", specifier = ">=0.15" },
+    { name = "yt-dlp", specifier = ">=2025.1.1" },
+]
+provides-extras = ["transcribe", "transcribe-mlx"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "pytest-timeout", specifier = ">=2.3" },
+    { name = "ruff", specifier = ">=0.8" },
+]
+
+[[package]]
 name = "annotated-doc"
 version = "0.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -173,58 +225,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/45/415fcccc250b218c99a536b155da20178ff6fbbb0e8cc805b9f39eec5416/ctranslate2-4.8.5-cp315-cp315t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:961a52e8b875380d3db2436f7f18459802684b7a5ae116866076ff51a0498daf", size = 19475614, upload-time = "2026-11-02T18:46:02.541Z" },
     { url = "https://files.pythonhosted.org/packages/73/a8/c83a4dd0ec6ef5fc340880711b945784653b63709b0ec4828ad10b529ccd/ctranslate2-4.8.5-cp315-cp315t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:07a646fa0bda0a5d4c1c8355aa895652daa449505c3853949f4a3f60ba1658e0", size = 43141211, upload-time = "2026-11-02T18:46:04.878Z" },
     { url = "https://files.pythonhosted.org/packages/f8/e2/1f3b00b9f697f827282fcaf778ac084f07a7b7a9cc35e95b51d68da532fb/ctranslate2-4.8.5-cp315-cp315t-win_amd64.whl", hash = "sha256:ee052b9c7e4d210b93735f4f5955ad9e864091a17f03aafcdeeb5ba60a6f79fe", size = 20708570, upload-time = "2026-11-02T18:46:07.316Z" },
-]
-
-[[package]]
-name = "echo360-dl"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "certifi" },
-    { name = "httpx" },
-    { name = "platformdirs" },
-    { name = "playwright" },
-    { name = "rich" },
-    { name = "typer" },
-    { name = "yt-dlp" },
-]
-
-[package.optional-dependencies]
-transcribe = [
-    { name = "av" },
-    { name = "faster-whisper" },
-]
-transcribe-mlx = [
-    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-timeout" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "av", marker = "extra == 'transcribe'", specifier = "<17" },
-    { name = "certifi", specifier = ">=2024.8.30" },
-    { name = "faster-whisper", marker = "extra == 'transcribe'", specifier = ">=1.1" },
-    { name = "httpx", specifier = ">=0.28" },
-    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'transcribe-mlx'", specifier = ">=0.4" },
-    { name = "platformdirs", specifier = ">=4.3" },
-    { name = "playwright", specifier = ">=1.49" },
-    { name = "rich", specifier = ">=13.9" },
-    { name = "typer", specifier = ">=0.15" },
-    { name = "yt-dlp", specifier = ">=2025.1.1" },
-]
-provides-extras = ["transcribe", "transcribe-mlx"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-timeout", specifier = ">=2.3" },
-    { name = "ruff", specifier = ">=0.8" },
 ]
 
 [[package]]

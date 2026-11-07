@@ -53,7 +53,7 @@ HOME_URL = "https://echo360.ca/"
 #: Hypothesis: the signed-in home lists courses at /courses (not verified on echo360.ca;
 #: a sign-in redirect from it is what check_status relies on).
 COURSES_URL = "https://echo360.ca/courses"
-LOGIN_HINT = "Run: echo360-dl auth login"
+LOGIN_HINT = "Run: 3ch0 auth login"
 # The tool's own interpreter guarantees a Chromium build matching the installed Playwright.
 INSTALL_HINT = ("Install the browser with: "
                 f"{shlex.quote(sys.executable)} -m playwright install chromium")
@@ -98,7 +98,7 @@ def _profile(profile_dir: Path | None) -> Path:
         return paths.prepare_profile_dir(Path(profile_dir or paths.browser_profile_dir()))
     except ValueError:
         raise UsageError(
-            f"{profile_dir} already contains files that echo360-dl did not create; refusing "
+            f"{profile_dir} already contains files that 3ch0 did not create; refusing "
             "to use it as the browser profile (it may be your everyday browser's profile).",
             hint="Pass an empty or new directory to --profile-dir, or omit it.") from None
 
@@ -188,8 +188,8 @@ def _launch(pw: Playwright, profile_dir: Path, *, headless: bool) -> BrowserCont
             raise DependencyError("Playwright's Chromium browser is not installed.",
                                   hint=INSTALL_HINT) from None
         if "SingletonLock" in text or "ProcessSingleton" in text or "already in use" in text:
-            raise AuthError("The echo360-dl browser profile is in use by another window.",
-                            hint="Close other echo360-dl browser windows and retry.") from None
+            raise AuthError("The 3ch0 browser profile is in use by another window.",
+                            hint="Close other 3ch0 browser windows and retry.") from None
         raise DependencyError(f"Could not start the browser: {text[:300]}",
                               hint=INSTALL_HINT) from None
 
@@ -358,8 +358,8 @@ def login(profile_dir: Path, *, start_url: str | None, timeout: float,
                             profile, True, None,
                             f"Reached {public_url(done[-1])}, but no Echo360 session cookie "
                             "appeared, so sign-in could not be confirmed. If you completed "
-                            "sign-in, run `echo360-dl auth status`; otherwise run "
-                            "`echo360-dl auth login` again.")
+                            "sign-in, run `3ch0 auth status`; otherwise run "
+                            "`3ch0 auth login` again.")
                 else:
                     unconfirmed_since = 0.0
                 with contextlib.suppress(Exception):
@@ -452,7 +452,7 @@ def _click_play(page: Page) -> str | None:
 def _wait_for_login(context: BrowserContext, ref: ClassroomRef, *, timeout: float,
                     progress: ProgressSink) -> None:
     progress.info("Sign-in needed: complete it in the browser window "
-                  f"(waiting up to {timeout:.0f} s). echo360-dl never types credentials.")
+                  f"(waiting up to {timeout:.0f} s). 3CH0 never types credentials.")
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         urls = _open_page_urls(context)

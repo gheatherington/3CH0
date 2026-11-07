@@ -91,7 +91,7 @@ def test_auth_status(fake, tmp_path):
     fake.auth = AuthStatus(tmp_path, True, False, "session expired")
     out = invoke(["auth", "status"])
     assert out.exit_code == 3
-    assert "Not logged in" in out.stderr and "echo360-dl auth login" in out.stderr
+    assert "Not logged in" in out.stderr and "3ch0 auth login" in out.stderr
 
 
 def _profile(path: Path) -> Path:

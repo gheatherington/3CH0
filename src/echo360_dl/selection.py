@@ -88,7 +88,7 @@ def resolve_streams(selection: StreamSelection, recording: Recording) -> tuple[i
             states = ", ".join(f"{s.display_name}: {s.access.value}" for s in recording.sources)
             raise UnavailableError(f"No accessible video source ({states}).",
                                    hint="A 403 does not prove a source is absent; try "
-                                        "'echo360-dl auth login' and re-run, or pick a "
+                                        "'3ch0 auth login' and re-run, or pick a "
                                         "source explicitly with --streams N.")
         return usable
     missing = [i for i in selection.source_indexes if i not in known]
@@ -99,7 +99,7 @@ def resolve_streams(selection: StreamSelection, recording: Recording) -> tuple[i
         raise ForbiddenError(
             f"Could not access {states} during discovery. Echo360 answers 403 both for "
             "sources this login cannot access and for sources that do not exist.",
-            hint="If the source plays in the browser, run 'echo360-dl auth login' and retry. "
+            hint="If the source plays in the browser, run '3ch0 auth login' and retry. "
                  f"Accessible sources: {', '.join(map(str, known)) or 'none'}.")
     if missing:
         raise UnavailableError(

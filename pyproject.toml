@@ -1,7 +1,7 @@
 [project]
-name = "echo360-dl"
+name = "3ch0"
 version = "0.1.0"
-description = "Personal CLI to inspect and download Echo360 recordings you can already view, with embedded subtitles and chapters."
+description = "3CH0: personal CLI to inspect and download Echo360 recordings you can already view, with embedded subtitles and chapters."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Gavin Heatherington" }]
@@ -28,6 +28,8 @@ transcribe = ["faster-whisper>=1.1", "av<17"]
 transcribe-mlx = ["mlx-whisper>=0.4; sys_platform == 'darwin' and platform_machine == 'arm64'"]
 
 [project.scripts]
+3ch0 = "echo360_dl.cli.app:main"
+# Former command name, kept as an alias so existing scripts and habits keep working.
 echo360-dl = "echo360_dl.cli.app:main"
 
 [dependency-groups]

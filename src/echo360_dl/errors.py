@@ -63,7 +63,7 @@ class AuthError(Echo360DLError):
 
 
 class LoginRequiredError(AuthError):
-    """No usable session; the user must run ``echo360-dl auth login``."""
+    """No usable session; the user must run ``3ch0 auth login``."""
 
     kind = "login-required"
 

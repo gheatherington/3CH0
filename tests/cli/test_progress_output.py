@@ -6,7 +6,6 @@ import signal
 import threading
 
 import pytest
-from rich.progress import Progress
 
 from echo360_dl.cli import output as cli_output
 from echo360_dl.cli.output import (
@@ -19,10 +18,8 @@ from echo360_dl.cli.output import (
 )
 from echo360_dl.cli.progress import (
     LineProgress,
+    LiveProgress,
     QuietProgress,
-    RichProgress,
-    _AmountColumn,
-    _RateEtaColumn,
     make_progress,
 )
 from echo360_dl.cli.theme import status_label
@@ -54,7 +51,7 @@ def make_ui(**options) -> tuple[UI, io.StringIO]:
 
 def test_sinks_satisfy_protocol():
     ui, _ = make_ui()
-    for sink in (LineProgress(ui), RichProgress(ui), QuietProgress()):
+    for sink in (LineProgress(ui), LiveProgress(ui), QuietProgress()):
         assert isinstance(sink, ProgressSink)
 
 
@@ -74,7 +71,7 @@ def test_line_progress_unknown_total_never_shows_percent():
     assert "\r" not in text
     updates = [line for line in text.splitlines() if "so far" in line]
     assert 3 <= len(updates) <= 6  # throttled, not one line per update
-    assert "[3/6] download" in text
+    assert "STAGE     3/6 download" in text
 
 
 def test_line_progress_known_total_rate_eta():
@@ -85,8 +82,8 @@ def test_line_progress_known_total_rate_eta():
     clock.now = 2
     sink.task_update("a", completed=5_000_000, rate=1_000_000.0, eta=5.0)
     text = err.getvalue()
-    assert "5.0 MB / 10.0 MB (50%)" in text
-    assert "1.0 MB/s" in text and "ETA 0:05" in text
+    assert "5.0 / 10.0 MB  50%" in text
+    assert "1.0 MB/s" in text and "remaining 00:05" in text
 
 
 def test_stage_headers_dedupe():
@@ -96,9 +93,9 @@ def test_stage_headers_dedupe():
     sink.stage(Stage.DISCOVER, "still discovering")
     sink.stage(Stage.SELECT)
     text = err.getvalue()
-    assert text.count("discover") == 2  # header + the follow-up message line
-    assert text.count("[1/6]") == 1
-    assert "[2/6] select" in text
+    assert text.count("1/6 discover") == 1  # one header; the repeat is a message line
+    assert "still discovering" in text
+    assert "2/6 select" in text
 
 
 def test_progress_messages_are_scrubbed_and_debug_needs_verbose():
@@ -125,32 +122,21 @@ def test_make_progress_selection():
     ui, _ = make_ui()
     assert isinstance(make_progress(ui), LineProgress)  # not a terminal
     tty_ui = UI("t", UIOptions(), stdout=io.StringIO(), stderr=TTYBuffer(), stdin=io.StringIO())
-    assert isinstance(make_progress(tty_ui), RichProgress)
+    assert isinstance(make_progress(tty_ui), LiveProgress)
     json_ui = UI("t", UIOptions(json=True), stdout=io.StringIO(), stderr=TTYBuffer(),
                  stdin=io.StringIO())
     assert isinstance(make_progress(json_ui), LineProgress)
 
 
-def test_rich_columns_unknown_total_have_no_percentage():
-    progress = Progress()
-    tid = progress.add_task("x", total=None, unit="bytes", rate=None, eta=None)
-    progress.update(tid, completed=3_000_000)
-    unknown = progress.tasks[0]
-    amount = _AmountColumn().render(unknown).plain
-    assert amount == "3.0 MB" and "%" not in amount
-    assert "ETA" not in _RateEtaColumn().render(unknown).plain
-    known_id = progress.add_task("y", total=10_000_000, unit="bytes", rate=2e6, eta=3.0)
-    progress.update(known_id, completed=5_000_000)
-    known = progress.tasks[1]
-    assert _AmountColumn().render(known).plain == "5.0 MB/10.0 MB  50%"
-    assert _RateEtaColumn().render(known).plain == "2.0 MB/s  ETA 0:03"
+def _plain(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text)
 
 
-def test_rich_progress_lifecycle_on_terminal():
+def test_live_progress_lifecycle_on_terminal():
     err = TTYBuffer()
-    ui = UI("t", UIOptions(ascii=True), stdout=io.StringIO(), stderr=err, stdin=io.StringIO(),
-            width=60)
-    with RichProgress(ui) as sink:
+    ui = UI("download", UIOptions(ascii=True), stdout=io.StringIO(), stderr=err,
+            stdin=io.StringIO(), width=60)
+    with LiveProgress(ui) as sink:
         sink.stage(Stage.DOWNLOAD)
         sink.task_start("a", "Source 1 video", total=None)
         sink.task_update("a", completed=1000)
@@ -159,10 +145,35 @@ def test_rich_progress_lifecycle_on_terminal():
         sink.task_done("a")
         sink.task_start("b", "audio", total=100)
         sink.task_done("b", ok=False, message="HTTP 403")
-    text = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", err.getvalue())
-    assert "Source 1 video" in text and "HTTP 403" in text
-    assert "| [3/6] download" in text
-    assert "x audio" in text  # failed task marked with a symbol, not colour only
+        sink.warn("something odd")
+    text = _plain(err.getvalue())
+    assert "[WARN]" in text and "something odd" in text  # warnings are durable
+    events = [e.text for e in sink.telemetry.snapshot().events]
+    assert "finished Source 1 video" in events
+    assert "audio: HTTP 403" in events
+    assert "\x1b[?25h" in err.getvalue()  # cursor shown again after the live display
+
+
+def test_live_progress_restores_terminal_on_interrupt():
+    err = TTYBuffer()
+    ui = UI("download", UIOptions(), stdout=io.StringIO(), stderr=err, stdin=io.StringIO(),
+            width=80)
+    with pytest.raises(KeyboardInterrupt), LiveProgress(ui) as sink:
+        sink.task_start("a", "Source 1 video", total=10)
+        raise KeyboardInterrupt
+    assert sink._region is None
+    out = err.getvalue()
+    assert out.rindex("\x1b[?25h") > out.rindex("\x1b[?25l")  # cursor hidden, then restored
+
+
+def test_cancellation_notify_replaces_raw_write():
+    event = threading.Event()
+    stream = io.StringIO()
+    seen: list[str] = []
+    handler = make_sigint_handler(event, stream, seen.append)
+    handler(signal.SIGINT, None)
+    assert event.is_set() and stream.getvalue() == ""
+    assert "Ctrl-C again" in seen[0]
 
 
 def test_sigint_handler_first_sets_event_second_raises():
@@ -237,7 +248,7 @@ def test_help_renders(args):
 
 def test_version():
     result = invoke(["--version"])
-    assert result.exit_code == 0 and result.stdout.startswith("echo360-dl ")
+    assert result.exit_code == 0 and result.stdout.startswith("3ch0 ")
 
 
 def test_force_color_on_a_pipe_does_not_animate(monkeypatch):

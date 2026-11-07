@@ -39,7 +39,6 @@ from echo360_dl.cli.theme import (
 from echo360_dl.errors import Echo360DLError, ExitCode, UnavailableError
 from echo360_dl.models import SCHEMA_VERSION, Transcript, to_jsonable
 from echo360_dl.redact import scrub
-from echo360_dl.timecode import format_clock
 
 CANCEL_MESSAGE = "cancelled — rerun to resume"
 
@@ -60,6 +59,7 @@ class UIOptions:
     no_color: bool = False
     ascii: bool = False
     non_interactive: bool = False
+    plain: bool = False  # never show the live display, even on a terminal
 
 
 class UI:
@@ -80,6 +80,15 @@ class UI:
         self.err: Console = make_console(self.stderr, no_color=self.no_color,
                                          ascii_only=self.ascii, width=width)
         self._json_emitted = False
+        #: Set by the live display while it runs: prints must go above it.
+        self.live_printer: Callable[[Callable[[], None]], None] | None = None
+
+    def _print(self, *renderables: RenderableType, **kwargs: Any) -> None:
+        printer = self.live_printer
+        if printer is not None:
+            printer(lambda: self.err.print(*renderables, **kwargs))
+        else:
+            self.err.print(*renderables, **kwargs)
 
     # -- modes -------------------------------------------------------------------------
     @property
@@ -117,12 +126,12 @@ class UI:
     # -- human output --------------------------------------------------------------------
     def show(self, *renderables: RenderableType) -> None:
         if self.human:
-            self.err.print(*renderables)
+            self._print(*renderables)
 
     def always(self, *renderables: RenderableType, soft_wrap: bool = False) -> None:
         """Printed even with --quiet (errors, final outputs list)."""
         if not self.options.json:
-            self.err.print(*renderables, soft_wrap=soft_wrap)
+            self._print(*renderables, soft_wrap=soft_wrap)
 
     def paths(self, paths: list[Path]) -> None:
         """Final outputs list: one unwrapped path per line (copy/paste friendly)."""
@@ -131,11 +140,11 @@ class UI:
 
     def warn(self, message: str) -> None:
         if not self.options.quiet:
-            self.err.print(status_block("WARN", scrub(message)))
+            self._print(status_block("WARN", scrub(message)))
 
     def debug(self, message: str) -> None:
         if self.verbose:
-            self.err.print(Text("debug: " + scrub(message), style="muted"))
+            self._print(Text("debug: " + scrub(message), style="muted"))
 
     # -- JSON --------------------------------------------------------------------------
     def emit_json(self, ok: bool, **payload: Any) -> None:
@@ -211,17 +220,20 @@ def scrub_strings(data: Any) -> Any:
 
 
 @contextlib.contextmanager
-def cancellation(stderr: IO[str] | None = None) -> Iterator[threading.Event]:
+def cancellation(stderr: IO[str] | None = None,
+                 notify: Callable[[str], None] | None = None) -> Iterator[threading.Event]:
     """Install a SIGINT handler for the duration of a cancellable operation.
 
     The first Ctrl-C sets the returned event (the pipeline stops at the next safe
     point and keeps resumable work); a second Ctrl-C raises KeyboardInterrupt.
+    ``notify`` (e.g. the live console) shows the "stopping" message instead of a raw
+    write to ``stderr``.
     """
     event = threading.Event()
     if threading.current_thread() is not threading.main_thread():
         yield event
         return
-    handler = make_sigint_handler(event, stderr or sys.stderr)
+    handler = make_sigint_handler(event, stderr or sys.stderr, notify)
     previous = signal.signal(signal.SIGINT, handler)
     # Terminal closed / kill: unwind immediately so ``finally`` blocks remove temp files
     # and cookie jars (SIGKILL cannot be caught; stale jars are swept on the next run).
@@ -242,14 +254,21 @@ def _raise_interrupt(signum: int, frame: object) -> None:
     raise KeyboardInterrupt
 
 
-def make_sigint_handler(event: threading.Event,
-                        stderr: IO[str]) -> Callable[[int, object], None]:
+STOPPING_MESSAGE = "Stopping after the current step... press Ctrl-C again to abort."
+
+
+def make_sigint_handler(event: threading.Event, stderr: IO[str],
+                        notify: Callable[[str], None] | None = None
+                        ) -> Callable[[int, object], None]:
     def handler(signum: int, frame: object) -> None:
         if event.is_set():
             raise KeyboardInterrupt
         event.set()
         with contextlib.suppress(Exception):
-            stderr.write("\nStopping after the current step... press Ctrl-C again to abort.\n")
+            if notify is not None:
+                notify(STOPPING_MESSAGE)
+                return
+            stderr.write(f"\n{STOPPING_MESSAGE}\n")
             stderr.flush()
 
     return handler
@@ -277,7 +296,7 @@ def fmt_amount(value: float | None, unit: str) -> str:
     if unit == "bytes":
         return fmt_bytes(value)
     if unit == "seconds":
-        return format_clock(max(value, 0.0))
+        return fmt_clock(max(value, 0.0))
     return f"{value:.0f}"
 
 
@@ -288,6 +307,56 @@ def fmt_eta(seconds: float | None) -> str:
     h, rem = divmod(total, 3600)
     m, s = divmod(rem, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def fmt_clock(seconds: float | None) -> str:
+    """Elapsed/remaining time as ``MM:SS`` (``H:MM:SS`` from one hour); ``""`` if unknown."""
+    if seconds is None or seconds < 0 or seconds != seconds:
+        return ""
+    total = int(seconds)
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+def fmt_span(seconds: float | None) -> str:
+    """A measured duration: ``182 ms``, ``12.3 s``, ``02:15``."""
+    if seconds is None or seconds < 0 or seconds != seconds:
+        return ""
+    if seconds < 1:
+        return f"{seconds * 1000:.0f} ms"
+    if seconds < 60:
+        return f"{seconds:.1f} s"
+    return fmt_clock(seconds)
+
+
+def fmt_rate(bytes_per_second: float | None) -> str:
+    """``6.8 MB/s`` (decimal units, like :func:`fmt_bytes`)."""
+    if bytes_per_second is None or bytes_per_second < 0 or bytes_per_second != bytes_per_second:
+        return ""
+    return fmt_bytes(bytes_per_second) + "/s"
+
+
+def _scale(value: float) -> tuple[float, str]:
+    for factor, unit in ((1e9, "GB"), (1e6, "MB"), (1e3, "kB")):
+        if abs(value) >= factor:
+            return factor, unit
+    return 1.0, "B"
+
+
+def fmt_pair(done: float | None, total: float | None, unit: str = "bytes") -> str:
+    """``162.0 / 250.0 MB`` with one unit taken from the total; just the amount when the
+    total is unknown."""
+    if unit != "bytes":
+        if total is None:
+            return fmt_amount(done or 0, unit)
+        return f"{fmt_amount(done or 0, unit)} / {fmt_amount(total, unit)}"
+    if total is None:
+        return fmt_bytes(done or 0)
+    factor, name = _scale(float(total))
+    if name == "B":
+        return f"{done or 0:.0f} / {total:.0f} B"
+    return f"{(done or 0) / factor:.1f} / {total / factor:.1f} {name}"
 
 
 _SLUG = re.compile(r"[^A-Za-z0-9]+")

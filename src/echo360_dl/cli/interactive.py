@@ -7,12 +7,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from rich.panel import Panel
+from rich.console import Group
 from rich.prompt import Confirm, Prompt
 from rich.text import Text
 
 from echo360_dl.cli.output import UI
-from echo360_dl.cli.render import sources_table
+from echo360_dl.cli.render import header_line, sources_table
+from echo360_dl.cli.theme import MARGIN, boxed, label_grid, margin, section_label
 from echo360_dl.errors import CancelledError, SelectionRequiredError, UnavailableError, UsageError
 from echo360_dl.models import AccessState, Layout, Recording
 from echo360_dl.redact import scrub
@@ -29,6 +30,15 @@ def available_sources(rec: Recording) -> tuple[int, ...]:
     usable = tuple(s.index for s in sorted(rec.sources, key=lambda s: s.index)
                    if s.access in (AccessState.AVAILABLE, AccessState.UNKNOWN))
     return usable or tuple(sorted(s.index for s in rec.sources))
+
+
+def _prompt(text: str) -> Text:
+    """Prompts sit on the view's left margin, value-styled with the accent marker."""
+    return Text.assemble(" " * MARGIN, (text, "heading"))
+
+
+def _note(ui: UI, text: str, style: str = "muted") -> None:
+    ui.err.print(margin(Text(text, style=style)))
 
 
 def _ask(ui: UI, prompt: Text, **kwargs: Any) -> Any:
@@ -53,13 +63,17 @@ def choose_sources(ui: UI, rec: Recording) -> tuple[tuple[int, ...], bool]:
     sources (including ones whose access could not be confirmed).
     """
     default = available_sources(rec)
-    ui.err.print(sources_table(rec, ui))
+    head = header_line(ui, "download")
+    title = label_grid()
+    title.add_row(section_label("Lesson"), Text(rec.title or rec.lesson_id, style="heading"))
+    ui.err.print(margin(Group(*([head] if head is not None else []),
+                              boxed("Sources", Group(title, Text(""), sources_table(rec, ui)),
+                                    ui.glyphs))))
     numbers = ",".join(map(str, default))
-    help_text = Text(f"all = sources {numbers}{ui.glyphs.sep}audio = audio only"
-                     f"{ui.glyphs.sep}or numbers such as 1,2", style="muted")
-    ui.err.print(help_text)
+    _note(ui, f"all = sources {numbers}{ui.glyphs.sep}audio = audio only"
+              f"{ui.glyphs.sep}or numbers such as 1,2")
     for _ in range(MAX_ATTEMPTS):
-        answer = str(_ask(ui, Text("Download which sources?", style="heading"),
+        answer = str(_ask(ui, _prompt("Download which sources?"),
                           default="all", show_default=True)).strip()
         try:
             selection = parse_streams(answer or "all")
@@ -69,40 +83,39 @@ def choose_sources(ui: UI, rec: Recording) -> tuple[tuple[int, ...], bool]:
                 return default, False
             return resolve_streams(selection, rec), False
         except (UsageError, UnavailableError) as err:
-            ui.err.print(Text(scrub(err.message) + (f" {err.hint}" if err.hint else ""),
-                              style="warn"))
+            _note(ui, scrub(err.message) + (f" {err.hint}" if err.hint else ""), "warn")
     raise SelectionRequiredError("No valid source selection was made.", hint=STREAMS_HINT)
 
 
 def choose_layout(ui: UI, rec: Recording, indexes: tuple[int, ...]) -> Layout:
     """Asked once when exactly two sources were picked interactively."""
     names = [rec.source(i).display_name if rec.source(i) else f"Source {i}" for i in indexes]
-    ui.err.print(Text(f"separate = one file per source (original quality){ui.glyphs.sep}"
-                      f"side-by-side = {names[0]} left, {names[1]} right{ui.glyphs.sep}"
-                      f"top-bottom = {names[0]} on top (both re-encoded into one video)",
-                      style="muted"))
+    _note(ui, f"separate = one file per source (original quality){ui.glyphs.sep}"
+              f"side-by-side = {names[0]} left, {names[1]} right{ui.glyphs.sep}"
+              f"top-bottom = {names[0]} on top (both re-encoded into one video)")
     choices = [layout.value for layout in Layout]
     for _ in range(MAX_ATTEMPTS):
-        answer = str(_ask(ui, Text("Layout?", style="heading"), default="separate",
+        answer = str(_ask(ui, _prompt("Layout?"), default="separate",
                           show_default=True)).strip().lower()
         aliases = {"s": "separate", "sbs": "side-by-side", "lr": "side-by-side",
                    "tb": "top-bottom", "stacked": "top-bottom"}
         answer = aliases.get(answer, answer or "separate")
         if answer in choices:
             return Layout(answer)
-        ui.err.print(Text(f"Choose one of: {', '.join(choices)}.", style="warn"))
+        _note(ui, f"Choose one of: {', '.join(choices)}.", "warn")
     raise SelectionRequiredError("No valid layout was chosen.",
                                  hint="Pass --layout separate|side-by-side|top-bottom.")
 
 
 def confirm_plan(ui: UI) -> bool:
-    return _confirm(ui, Text("Start download?", style="heading"), default=True)
+    ui.err.print()
+    return _confirm(ui, _prompt("Start download?"), default=True)
 
 
 def confirm_logout(ui: UI, profile: Path) -> bool:
-    ui.err.print(Text(f"This deletes the dedicated browser profile at {profile} "
-                      "(saved Echo360 login).", style="warn"))
-    return _confirm(ui, Text("Delete it?", style="heading"), default=False)
+    _note(ui, f"This deletes the dedicated browser profile at {profile} "
+              "(saved Echo360 login).", "warn")
+    return _confirm(ui, _prompt("Delete it?"), default=False)
 
 
 def model_download_confirmer(ui: UI, *, allow: bool,
@@ -120,11 +133,9 @@ def model_download_confirmer(ui: UI, *, allow: bool,
         if context is not None:
             context.__enter__()
         try:
-            ui.err.print(Panel(Text(scrub(message)), title=Text("Speech model download",
-                                                                  style="heading"),
-                               title_align="left", box=ui.glyphs.panel_box,
-                               border_style="warn", expand=False))
-            return _confirm(ui, Text("Download it now?", style="heading"), default=False)
+            ui.err.print(margin(boxed("Speech model", Text(scrub(message)), ui.glyphs,
+                                      style="warn")))
+            return _confirm(ui, _prompt("Download the speech model now?"), default=False)
         finally:
             if context is not None:
                 context.__exit__(None, None, None)

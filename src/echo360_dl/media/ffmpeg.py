@@ -27,7 +27,7 @@ from echo360_dl.models import Chapter, StreamInfo, VerifyReport
 from echo360_dl.redact import scrub
 
 FFMPEG_HINT = "Install ffmpeg (includes ffprobe) with: brew install ffmpeg"
-YTDLP_HINT = "yt-dlp is a Python dependency of echo360-dl; reinstall with: uv sync"
+YTDLP_HINT = "yt-dlp is a Python dependency of 3ch0; reinstall with: uv sync"
 
 #: Handler names written by muxers by default; not useful as a track title.
 _GENERIC_HANDLER = re.compile(r"(?i)^(?:\w*handler|core media \w+|iso media file.*|)$")

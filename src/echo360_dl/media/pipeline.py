@@ -63,7 +63,9 @@ from echo360_dl.media.download import (
     WorkDir,
     _RefreshExhausted,
     component_key,
+    component_task_id,
     download_component,
+    prefetch_size,
 )
 from echo360_dl.media.ffmpeg import require_tools
 from echo360_dl.media.mux import (
@@ -520,7 +522,11 @@ class _Run:
         _check_cancel(self.cancel)
         self.work = WorkDir(work_dir_for(request.output_dir, self.recording),
                             self.recording.lesson_id)
-        remove_stale_temps(request.output_dir, f"[{naming.lesson_tag(self.recording)}]")
+        # Temp names are ".<final stem>.echo360-dl-tmp…": a custom --name carries no
+        # "[<short_id>]", so match on its own prefix instead.
+        remove_stale_temps(request.output_dir,
+                           "." + naming.custom_basename(request.name) if request.name
+                           else f"[{naming.lesson_tag(self.recording)}]")
 
         self.progress.stage(Stage.DOWNLOAD)
         components: dict[str, Component] = {}
@@ -599,7 +605,7 @@ class _Run:
             except UnavailableError as exc:
                 self.fail("select", "audio", exc, media=False)
                 return []
-            final = out_dir / (naming.media_basename(rec, "audio") + ".m4a")
+            final = out_dir / (naming.request_media_basename(request, "audio") + ".m4a")
             return [_Planned(OutputKind.AUDIO, None, "audio", None, comp, final, "m4a",
                              iso639_2(track.language))]
         indexes = request.source_indexes or tuple(s.index for s in rec.sources)
@@ -642,7 +648,7 @@ class _Run:
             if label.casefold() in used_labels:
                 label = f"{label} ({index})"
             used_labels.add(label.casefold())
-            final = out_dir / (naming.media_basename(rec, label) + ext)
+            final = out_dir / (naming.request_media_basename(request, label) + ext)
             planned.append(_Planned(OutputKind.VIDEO, index, source.display_name, video, audio,
                                     final, container,
                                     iso639_2(track.language if track else None)))
@@ -652,7 +658,7 @@ class _Run:
 
     def _plan_composite(self, separate: list[_Planned], indexes: tuple[int, ...], ext: str,
                         container: ContainerKind) -> list[_Planned]:
-        request, rec = self.request, self.recording
+        request = self.request
         try:
             first, second = composite_pair(indexes, request.layout_order)
         except Echo360DLError as exc:
@@ -665,7 +671,7 @@ class _Run:
         audio = left.audio or right.audio
         arrangement = "side by side" if request.layout is Layout.SIDE_BY_SIDE else "top-bottom"
         label = f"{left.label} + {right.label} ({arrangement})"
-        final = request.output_dir / (naming.media_basename(rec, label) + ext)
+        final = request.output_dir / (naming.request_media_basename(request, label) + ext)
         composite = _Planned(OutputKind.COMPOSITE, None, label, None, audio, final, container,
                              left.audio_language, videos=[left.video, right.video],
                              layout=request.layout.value)
@@ -697,12 +703,25 @@ class _Run:
         ctx = DownloadContext(self.workdir, self.refresher, self.progress,
                               self.cancel, retries=max(0, self.request.retries))
         results: dict[str, Path] = {}
+        # Optional sink extra: list every component up front so a live view can show the
+        # ones still waiting for a worker as "queued" (sinks without it are unaffected).
+        queued = getattr(self.progress, "task_queued", None)
+        if callable(queued):
+            for component in components:
+                queued(component_task_id(component), component.label, "bytes")
         workers = max(1, min(self.request.concurrency, len(components) or 1))
         pool = concurrent.futures.ThreadPoolExecutor(max_workers=workers,
                                                      thread_name_prefix="echo360-dl")
         futures = {pool.submit(download_component, c, ctx): c for c in components}
         pending = set(futures)
         try:
+            if callable(queued):
+                # Read the playlists of waiting components now (the download reuses them),
+                # so the live view knows the overall size from the start.
+                for component in components[workers:]:
+                    size = prefetch_size(component, ctx)
+                    if size:
+                        queued(component_task_id(component), component.label, "bytes", size)
             while pending:
                 done, pending = concurrent.futures.wait(
                     pending, timeout=0.2, return_when=concurrent.futures.FIRST_COMPLETED)
@@ -971,7 +990,7 @@ class _Run:
                                        provenance=provenance, size=len(data)))
 
     def _sidecars(self, bundle: TranscriptBundle, chapter_set: ChapterSet | None) -> None:
-        base = naming.lesson_basename(self.recording)
+        base = naming.request_basename(self.request)
         used: set[tuple[str, ...]] = set()
         kept, duplicates = dedupe_platform_tracks([t for t in bundle.transcripts if t.timed])
         for t in [*kept, *(t for t in bundle.transcripts if not t.timed)]:

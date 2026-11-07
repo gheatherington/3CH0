@@ -1,4 +1,4 @@
-"""Typer application: ``echo360-dl`` commands.
+"""Typer application: the ``3ch0`` commands (also installed as ``echo360-dl``).
 
 The CLI talks to the implementation packages only through
 :func:`echo360_dl.services.get_services`. Output rules (see ``cli/output.py``):
@@ -32,7 +32,7 @@ from echo360_dl.cli.output import (
     serialise_transcript,
 )
 from echo360_dl.cli.progress import Sink, make_progress
-from echo360_dl.cli.theme import status_block, status_label
+from echo360_dl.cli.theme import BRAND, COMMAND, LEGACY_COMMAND, status_block, status_label
 from echo360_dl.errors import (
     AuthExpiredError,
     Echo360DLError,
@@ -79,12 +79,12 @@ from echo360_dl.selection import (
 from echo360_dl.services import get_services
 from echo360_dl.timecode import parse_time
 
-LOGIN_HINT = "Run `echo360-dl auth login` in a terminal to sign in, then retry."
+LOGIN_HINT = f"Run `{COMMAND} auth login` in a terminal to sign in, then retry."
 
 app = typer.Typer(
-    name="echo360-dl",
-    help="Inspect and download Echo360 lecture recordings you can already view. "
-         "Not affiliated with Echo360.",
+    name=COMMAND,
+    help=f"{BRAND}: inspect and download Echo360 lecture recordings you can already view. "
+         f"Not affiliated with Echo360. (`{LEGACY_COMMAND}` still works as an alias.)",
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_enable=False,
@@ -143,6 +143,9 @@ AsciiOpt = Annotated[bool, typer.Option(
 NonInteractiveOpt = Annotated[bool, typer.Option(
     "--non-interactive", help="Never prompt and never open a login window.",
     rich_help_panel=OUT)]
+PlainOpt = Annotated[bool, typer.Option(
+    "--plain", help="No live display: plain progress lines even in a terminal (nothing is "
+    "redrawn).", rich_help_panel=OUT)]
 
 AuthOpt = Annotated[AuthMode | None, typer.Option(
     "--auth", help="How to authenticate: the dedicated browser profile (default) or a saved "
@@ -171,9 +174,9 @@ AllowModelOpt = Annotated[bool, typer.Option(
 
 
 def _opts(json_: bool, quiet: bool, verbose: bool, no_color: bool, ascii_: bool,
-          non_interactive: bool) -> UIOptions:
+          non_interactive: bool, plain: bool = False) -> UIOptions:
     return UIOptions(json=json_, quiet=quiet, verbose=verbose, no_color=no_color,
-                     ascii=ascii_, non_interactive=non_interactive)
+                     ascii=ascii_, non_interactive=non_interactive, plain=plain)
 
 
 # --------------------------------------------------------------------------------------
@@ -255,10 +258,12 @@ def _discover(ui: UI, sink: Sink, url: str,
     return recording, session
 
 
-def _show_header(ui: UI, subtitle: str) -> None:
-    head = render.header_line(ui, subtitle)
-    if head is not None:
-        ui.show(head)
+def _display_url(url: str) -> str:
+    """The classroom URL without its query (signed parameters live there)."""
+    try:
+        return public_url(get_services().parse_url(url).url)
+    except Echo360DLError:
+        return public_url(url)
 
 
 # --------------------------------------------------------------------------------------
@@ -268,7 +273,7 @@ def _show_header(ui: UI, subtitle: str) -> None:
 
 def _version(value: bool) -> None:
     if value:
-        sys.stdout.write(f"echo360-dl {__version__}\n")
+        sys.stdout.write(f"{COMMAND} {__version__}\n")
         raise typer.Exit(0)
 
 
@@ -278,7 +283,7 @@ def root(
         "--version", callback=_version, is_eager=True, help="Show the version and exit.")]
     = False,
 ) -> None:
-    """Inspect and download Echo360 lecture recordings you can already view."""
+    """3CH0: inspect and download Echo360 lecture recordings you can already view."""
 
 
 # --------------------------------------------------------------------------------------
@@ -294,7 +299,7 @@ def doctor(
     profile_dir: ProfileDirOpt = None,
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Check Python, FFmpeg, yt-dlp, the browser, folders and transcription backends."""
 
@@ -315,7 +320,8 @@ def doctor(
             ui.show(doctor_view(checks, ui))
         return int(ExitCode.DEPENDENCY) if failed else 0
 
-    _execute("doctor", _opts(json_, quiet, verbose, no_color, ascii_, non_interactive), body)
+    _execute("doctor",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 # --------------------------------------------------------------------------------------
@@ -335,7 +341,7 @@ def auth_login(
     profile_dir: ProfileDirOpt = None,
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Open the dedicated browser window and sign in to Echo360 (interactive only)."""
 
@@ -353,7 +359,8 @@ def auth_login(
         ui.always(render.auth_status_view(status, ui))
         return 0 if status.logged_in else int(ExitCode.AUTH)
 
-    _execute("auth login", _opts(json_, quiet, verbose, no_color, ascii_, non_interactive), body)
+    _execute("auth login",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 @auth_app.command("status")
@@ -363,7 +370,7 @@ def auth_status(
     profile_dir: ProfileDirOpt = None,
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Report whether the saved browser login still works (exit 3 when signed out)."""
 
@@ -376,7 +383,8 @@ def auth_status(
             ui.always(render.auth_status_view(status, ui))
         return code
 
-    _execute("auth status", _opts(json_, quiet, verbose, no_color, ascii_, non_interactive), body)
+    _execute("auth status",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 def _is_profile_dir(path: Path) -> bool:
@@ -385,7 +393,7 @@ def _is_profile_dir(path: Path) -> bool:
     dangerous = {Path.home().resolve(), Path("/").resolve(), Path.cwd().resolve()}
     if resolved in dangerous or resolved in Path.cwd().resolve().parents:
         return False
-    # Only directories echo360-dl created (marker file) or the default location: Chrome's
+    # Only directories this tool created (marker file) or the default location: Chrome's
     # own "Local State"/"Preferences" files would also match a real browser profile.
     return paths.is_own_profile(resolved)
 
@@ -397,7 +405,7 @@ def auth_logout(
     profile_dir: ProfileDirOpt = None,
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Delete the dedicated browser profile (and the Echo360 login saved in it)."""
 
@@ -411,7 +419,7 @@ def auth_logout(
                              style="muted"))
             return 0
         if not profile.is_dir() or not _is_profile_dir(profile):
-            raise UsageError(f"{profile} does not look like an echo360-dl browser profile; "
+            raise UsageError(f"{profile} does not look like a {COMMAND} browser profile; "
                              "refusing to delete it.")
         if not yes:
             if not ui.interactive:
@@ -429,7 +437,8 @@ def auth_logout(
             ui.always(line)
         return 0
 
-    _execute("auth logout", _opts(json_, quiet, verbose, no_color, ascii_, non_interactive), body)
+    _execute("auth logout",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 # --------------------------------------------------------------------------------------
@@ -447,7 +456,7 @@ def inspect(
     profile_dir: ProfileDirOpt = None,
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Show sources, qualities, audio, captions and chapters for a lesson."""
 
@@ -463,7 +472,8 @@ def inspect(
             # (discovery itself reports where the sanitised trace was written)
         return 0
 
-    _execute("inspect", _opts(json_, quiet, verbose, no_color, ascii_, non_interactive), body)
+    _execute("inspect",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 # --------------------------------------------------------------------------------------
@@ -488,6 +498,28 @@ def _default_language(value: str | None) -> str | None:
         raise UsageError(f"Invalid --default-subtitle value {value!r}.",
                          hint="Use one language code such as 'en'.")
     return mode.languages[0]
+
+
+_MEDIA_EXTENSIONS = (".mp4", ".mkv", ".m4a")
+
+
+def _output_name(value: str | None) -> str | None:
+    """Validate --name: a bare file name; a typed media extension is dropped (the
+    container decides it)."""
+    if value is None:
+        return None
+    from echo360_dl.media import naming
+
+    text = value.strip()
+    if "/" in text or "\\" in text:
+        raise UsageError(f"--name {value!r} must be a file name, not a path.",
+                         hint="Choose the folder with --output DIR.")
+    if text.lower().endswith(_MEDIA_EXTENSIONS):
+        text = text[:-4]
+    cleaned = naming.safe_component(text, fallback="")
+    if not cleaned:
+        raise UsageError(f"--name {value!r} leaves no usable file name.")
+    return text
 
 
 @app.command()
@@ -522,6 +554,10 @@ def download(
     output: Annotated[Path | None, typer.Option(
         "--output", "-o", metavar="DIR", help="Output directory (default: Downloads).",
         show_default=False)] = None,
+    name: Annotated[str | None, typer.Option(
+        "--name", "-n", metavar="NAME", help="Output file name (no extension) instead of "
+        "'<course> - <date> - <title> [<id>]'. Several media files get ' - <source>' "
+        "appended; sidecars use NAME too.", show_default=False)] = None,
     if_exists: Annotated[IfExists, typer.Option(
         "--if-exists", help="What to do when an output file already exists.")]
     = IfExists.SKIP,
@@ -552,7 +588,7 @@ def download(
     profile_dir: ProfileDirOpt = None,
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Download sources with embedded subtitles and chapters, then verify them."""
 
@@ -574,6 +610,7 @@ def download(
                 not chapter_mode.file.is_file():
             raise UsageError(f"Chapters file not found: {chapter_mode.file}")
         default_lang = _default_language(default_subtitle)
+        output_name = _output_name(name)
         transcribe_opts = TranscribeOptions(
             enabled=transcribe is TranscribeMode.LOCAL, backend=transcribe_backend.value,
             model=transcribe_model, allow_model_download=allow_model_download)
@@ -581,9 +618,11 @@ def download(
         options = _discovery_options(ui, auth=auth, request_file=request_file, timeout=timeout,
                                      profile_dir=profile_dir)
 
-        _show_header(ui, "download")
         with make_progress(ui) as sink:
+            sink.set_context(source=_display_url(url))
             recording, session = _discover(ui, sink, url, options)
+            sink.set_context(title=recording.title or recording.lesson_id)
+            sink.set_streams(render.stream_details(recording, ui.glyphs))
             sink.stage(Stage.SELECT)
             if selection is None:
                 with sink.paused():
@@ -618,18 +657,22 @@ def download(
                 if_exists=if_exists, write_sidecars=not no_sidecars,
                 default_subtitle=default_lang, retries=retries, concurrency=concurrency,
                 keep_work_dir=keep_work_dir, layout=chosen_layout, layout_order=order,
-                keep_separate=keep_separate, encoder=encoder)
+                keep_separate=keep_separate, encoder=encoder, name=output_name)
             _check_quality(recording, indexes, request)
+            sink.set_context(target=str(out_dir))
             with sink.paused():
-                ui.show(render.plan_panel(request, ui))
+                ui.show(render.plan_view(request, ui))
                 if selection is None and not interactive.confirm_plan(ui):
                     ui.show(Text("Nothing downloaded.", style="muted"))
                     return 0
             confirm = interactive.model_download_confirmer(
                 ui, allow=allow_model_download, pause=sink.paused)
-            with cancellation(ui.stderr) as cancel:
+            with cancellation(ui.stderr, notify=sink.notice) as cancel:
                 result = services.download(request, session, progress=sink,
                                            confirm_download=confirm, cancel=cancel)
+            # Warnings the live view showed but has not printed go into the summary.
+            take = getattr(sink, "take_warnings", None)
+            pending = take() if callable(take) and not ui.json and not ui.quiet else []
         if ui.json:
             ui.emit_json(result.status is ResultStatus.OK, result=result)
         elif ui.quiet:
@@ -637,13 +680,14 @@ def download(
             for failure in result.failures:
                 ui.always(Text(f"[FAIL] {scrub(failure.target)}: {scrub(failure.message)}"))
         else:
-            ui.err.print(render.result_view(result, ui))
+            ui.err.print(render.result_view(result, ui, sink.telemetry.snapshot(), pending))
         if result.status is ResultStatus.CANCELLED and not ui.json:
             ui.always(Text(CANCEL_MESSAGE if not ui.ascii else
                            CANCEL_MESSAGE.replace("—", "-"), style="warn"))
         return result.exit_code
 
-    _execute("download", _opts(json_, quiet, verbose, no_color, ascii_, non_interactive), body)
+    _execute("download",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 # --------------------------------------------------------------------------------------
@@ -752,7 +796,7 @@ def transcript(
     profile_dir: ProfileDirOpt = None,
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Save the platform transcript/captions, or generate one locally (--transcribe local)."""
 
@@ -782,7 +826,7 @@ def transcript(
             sink.stage(Stage.SUBTITLES)
             confirm = interactive.model_download_confirmer(
                 ui, allow=allow_model_download, pause=sink.paused)
-            with cancellation(ui.stderr) as cancel:
+            with cancellation(ui.stderr, notify=sink.notice) as cancel:
                 bundle = services.transcripts(
                     recording, session, subtitles=subtitle_mode, transcribe=transcribe_opts,
                     work_dir=Path(work_dir), progress=sink, confirm_download=confirm,
@@ -832,7 +876,8 @@ def transcript(
             ui.show(line)
         return 0
 
-    _execute("transcript", _opts(json_, quiet, verbose, no_color, ascii_, non_interactive), body)
+    _execute("transcript",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 # --------------------------------------------------------------------------------------
@@ -858,7 +903,7 @@ def chapters_validate(
         show_default=False)] = None,
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Check a chapter file and print the resolved chapters (exit 8 on problems)."""
 
@@ -895,8 +940,8 @@ def chapters_validate(
                 ui.show(line)
         return int(ExitCode.VERIFY) if problems else 0
 
-    _execute("chapters validate", _opts(json_, quiet, verbose, no_color, ascii_,
-                                        non_interactive), body)
+    _execute("chapters validate",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 @chapters_app.command("show")
@@ -905,7 +950,7 @@ def chapters_show(
                                                help="Media file to read.")],
     json_: JsonOpt = False, quiet: QuietOpt = False, verbose: VerboseOpt = False,
     no_color: NoColorOpt = False, ascii_: AsciiOpt = False,
-    non_interactive: NonInteractiveOpt = False,
+    non_interactive: NonInteractiveOpt = False, plain: PlainOpt = False,
 ) -> None:
     """Show the chapters embedded in a media file, as ffprobe sees them."""
 
@@ -921,8 +966,8 @@ def chapters_show(
             ui.always(Text("No embedded chapters.", style="muted"))
         return 0
 
-    _execute("chapters show", _opts(json_, quiet, verbose, no_color, ascii_, non_interactive),
-             body)
+    _execute("chapters show",
+             _opts(json_, quiet, verbose, no_color, ascii_, non_interactive, plain), body)
 
 
 # --------------------------------------------------------------------------------------
@@ -945,7 +990,7 @@ def main(argv: list[str] | None = None) -> None:
     try:
         if "--json" in args and not {"-h", "--help", "--version"} & set(args):
             try:
-                code = app(args=args, prog_name="echo360-dl", standalone_mode=False)
+                code = app(args=args, prog_name=COMMAND, standalone_mode=False)
             except typer.Abort:
                 raise KeyboardInterrupt from None
             except Exception as exc:
@@ -954,11 +999,11 @@ def main(argv: list[str] | None = None) -> None:
                     raise
                 ctx = getattr(exc, "ctx", None)
                 path = getattr(ctx, "command_path", "") or ""
-                command = path.removeprefix("echo360-dl").strip() or "echo360-dl"
+                command = path.removeprefix(COMMAND).strip() or COMMAND
                 _json_usage_error(command, exc.format_message())
                 sys.exit(int(ExitCode.USAGE))
             sys.exit(code if isinstance(code, int) else 0)
-        app(args=args, prog_name="echo360-dl")
+        app(args=args, prog_name=COMMAND)
     except KeyboardInterrupt:
         message = CANCEL_MESSAGE
         if "--ascii" in (argv if argv is not None else sys.argv[1:]):

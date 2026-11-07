@@ -1,8 +1,8 @@
-# echo360-dl
+# 3CH0
 
-A personal command-line tool that inspects and downloads **Echo360 recordings you can already
-watch**. It can also embed selectable subtitles and chapter markers, and generate a local
-transcript when the platform has none.
+**3CH0** (command: `3ch0`) is a personal command-line tool that inspects and downloads
+**Echo360 recordings you can already watch**. It can also embed selectable subtitles and
+chapter markers, and generate a local transcript when the platform has none.
 
 > Not an official Echo360 product and not affiliated with Echo360. It uses your own login,
 > keeps credentials on your machine, and does not get around DRM or access controls.
@@ -15,6 +15,7 @@ are untested and not claimed.
 ## Contents
 - [Install](#install)
 - [Quick start](#quick-start)
+- [Terminal display](#terminal-display)
 - [Commands](#commands)
 - [Selecting sources and quality](#selecting-sources-and-quality)
 - [Combined layouts (both sources in one video)](#combined-layouts-both-sources-in-one-video)
@@ -37,10 +38,10 @@ Chromium.
 ```zsh
 brew install ffmpeg uv
 cd /path/to/3CH0                       # this project folder
-uv tool install .                      # installs the `echo360-dl` command (isolated env)
+uv tool install .                      # installs `3ch0` (and the old name `echo360-dl`)
                                        # after updating the code: uv tool install --reinstall .
-"$(uv tool dir)/echo360-dl/bin/python" -m playwright install chromium   # one-time (~150 MB)
-echo360-dl doctor                      # checks everything
+"$(uv tool dir)/3ch0/bin/python" -m playwright install chromium   # one-time (~150 MB)
+3ch0 doctor                            # checks everything
 ```
 
 Optional local transcription (see [Local transcription](#local-transcription)):
@@ -51,65 +52,150 @@ uv tool install --force '.[transcribe-mlx]'   # mlx-whisper (Apple GPU), Apple S
 ```
 
 The original script still works as a thin wrapper: `python3 download_echo360.py URL` runs
-`echo360-dl download URL --streams all` (see [Compatibility](#compatibility)).
+`3ch0 download URL --streams all` (see [Compatibility](#compatibility)).
+
+**Upgrading from `echo360-dl`.** The package is now called `3ch0`, so uv treats it as a new
+tool. Remove the old one first, then install as above:
+
+```zsh
+uv tool uninstall echo360-dl && uv tool install .    # add '.[transcribe]' if you used it
+```
+
+Both `3ch0` and `echo360-dl` are installed and run the same program with the same commands,
+options, exit codes and JSON. The per-user data, cache and config folders keep their
+`echo360-dl` names, so the saved login, downloaded models, `ECHO360_DL_HOME` and the resume
+folders (`.echo360-dl-<id>/`) carry over. You don't need to move anything or sign in again.
 
 ## Quick start
 
 ```zsh
-echo360-dl auth login          # sign in once in the dedicated browser window (SSO/MFA by you)
-echo360-dl inspect 'https://echo360.ca/lesson/…/classroom'
-echo360-dl download 'https://echo360.ca/lesson/…/classroom'      # interactive selection
+3ch0 auth login          # sign in once in the dedicated browser window (SSO/MFA by you)
+3ch0 inspect 'https://echo360.ca/lesson/…/classroom'
+3ch0 download 'https://echo360.ca/lesson/…/classroom'      # interactive selection
 ```
 
 A download goes through six stages: **discover → select → download → subtitles → chapters
 → verify**. Interactive mode shows the sources it found, asks which ones you want (one,
 several, all, or audio only), shows a short plan, and starts after one confirmation.
 
+## Terminal display
+
+In a terminal, `3ch0` shows a live view while it works and replaces it with a boxed summary
+when it finishes. Each part has its own titled box. Example (fictional values, 80 columns):
+
+```text
+  3CH0 / download                                                  elapsed 00:29
+  ╭─ LESSON ───────────────────────────────────────────────────────────────────╮
+  │ URL       https://echo360.ca/lesson/G_…/classroom                          │
+  │ TITLE     Lecture 7: Thermodynamics                                        │
+  │ TARGET    ~/Downloads                                                      │
+  ╰────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TRANSFER ─────────────────────────────────────────────────────────────────╮
+  │ ━━━━━━━━━━━━━━━━━━━━━━━━────────────────────────  50.2%    remaining 00:36 │
+  │ 141.6 / 282.0 MB · 1 active · 1 queued                                     │
+  │ current 3.9 MB/s   average 5.5 MB/s   peak 8.7 MB/s                        │
+  │ ▆██▇▆▄▄▄▄▆▇▇▆▅▄▃▃▃▄▆▆▇▆▅▄▃                          throughput · last 26 s │
+  ╰────────────────────────────────────────────────────────────────────────────╯
+  ╭─ STREAMS ──────────────────────────────────────────────────────────────────╮
+  │   STREAM            PROGRESS         SIZE              LEFT   STATE        │
+  │   Audio (shared)    ━━━━━━━━━━ 100%  13.8 / 13.8 MB           done         │
+  │ ▸ Source 1 video    ━━━━━━━━━─  86%  127.8 / 148.2 MB  00:08  fetching     │
+  │   Source 2 video    ──────────   0%  0.0 / 120.0 MB           queued       │
+  ╰────────────────────────────────────────────────────────────────────────────╯
+  ╭─ PIPELINE ─────────────────────────────────────────────────────────────────╮
+  │ discover ✓ → select ✓ → [download] → subtitles → chapters → verify         │
+  ╰────────────────────────────────────────────────────────────────────────────╯
+  ╭─ EVENTS ───────────────────────────────────────────────────────────────────╮
+  │ 14:32:29  finished Audio (shared)                          13.8 MB  25.9 s │
+  │ 14:32:29  [WARN] Skipping Source 2: forbidden (a 403 does not prove it is… │
+  ╰────────────────────────────────────────────────────────────────────────────╯
+  ↑↓ select · d details · ctrl-c stop
+```
+
+While a combined layout (`--layout side-by-side|top-bottom`) is being encoded, an
+**ENCODE** box shows its own bar, the media time done (`12:30 / 54:00 of media`), the
+measured encoding speed (`3.1×`) and the time remaining. Local transcription gets a
+**TRANSCRIBE** box in the same style.
+
+- **TRANSFER** is the sum of all stream downloads. Each stream's size is exact: it comes
+  from the playlist's byte ranges. Streams that are still waiting for a download slot have
+  their playlist read early. That download then reuses the same playlist, so no request is
+  added. This means the total and percentage are there from the start.
+- **NETWORK figures** (*current*, *average*, *peak*) count only bytes downloaded in this run.
+  Data resumed from an earlier run or a reused file is not network traffic, so it is not
+  counted. *current* is a 3-second moving average, *peak* is the highest 3-second average,
+  and *average* runs from the first byte to the last. The graph has one bar per second,
+  scaled to the largest value shown.
+- **STREAMS** gives every download (and encode/write step) its own row with a progress bar,
+  size and time left. A waiting stream shows an empty bar at 0%. Download time left comes
+  from yt-dlp. Encode/transcribe time left is measured from the progress of the last few
+  seconds. FORMAT is shown on wider terminals and comes from the playlist.
+- **PIPELINE** shows the real stages: finished ones are ticked and the current one is in
+  `[brackets]`. **EVENTS** keeps the latest events, and repeats are collapsed (`×3`).
+- **Calm redraws:** the view redraws at most twice a second, and only lines whose content
+  changed are rewritten. Nothing is blanked first, and each update is sent as one
+  synchronized frame where the terminal supports it (Ghostty, iTerm2, kitty, WezTerm,
+  recent tmux). There are no spinners or blinking. **`--plain`** turns the live view off
+  completely and prints plain progress lines instead, even in a terminal.
+- **Keys** (when stdin is a terminal): `↑`/`↓` (or `k`/`j`) select a row. `d` or Enter shows
+  the details for that row (task id, amounts, reported/measured rate, recent debug lines,
+  secrets redacted). Ctrl-C works as before: the first press stops after the current step
+  and keeps resumable work, the second aborts. Prompts are typed answers, as before.
+- The view adapts to the terminal width and height. Columns and boxes drop as it shrinks:
+  event rows first, then the lesson box, the graph, the pipeline, and finally the box
+  borders. It leaves the terminal as it found it on success, failure or Ctrl-C.
+  `--ascii` (or a non-UTF-8 terminal) uses `+-|#` instead of the line and box characters.
+  `--no-color` / `NO_COLOR` remove colour, and every status is also a word (`[OK]`,
+  `[WARN]`, `[FAIL]`).
+- When stderr is not a terminal (logs, pipes, CI), `3ch0` writes plain lines in order: no
+  colour, cursor movement or animation, with progress at most every 10 s per stream.
+  `--quiet` prints only the output paths and errors. `--json` is unchanged.
+
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `echo360-dl doctor` | Checks Python, ffmpeg/ffprobe, yt-dlp, Chromium, the browser profile, the output folder and transcription backends. |
-| `echo360-dl auth login` | Opens the dedicated browser so you can sign in. Interactive only. |
-| `echo360-dl auth status` | Checks whether the saved session still works (exit 3 if not). |
-| `echo360-dl auth logout [--yes]` | Deletes the dedicated browser profile. |
-| `echo360-dl inspect URL` | Lists video sources, resolutions, audio, captions/transcripts, chapters and discovery notes. |
-| `echo360-dl download URL` | Downloads the selected sources with embedded subtitles and chapters, then verifies them. |
-| `echo360-dl transcript URL` | Exports the platform transcript (or a locally generated one) as VTT/SRT/TXT/JSON. |
-| `echo360-dl chapters validate FILE` | Validates a chapter JSON file, optionally against `--duration` or `--media`. |
-| `echo360-dl chapters show MEDIA` | Lists the chapters actually embedded in a media file (from ffprobe). |
+| `3ch0 doctor` | Checks Python, ffmpeg/ffprobe, yt-dlp, Chromium, the browser profile, the output folder and transcription backends. |
+| `3ch0 auth login` | Opens the dedicated browser so you can sign in. Interactive only. |
+| `3ch0 auth status` | Checks whether the saved session still works (exit 3 if not). |
+| `3ch0 auth logout [--yes]` | Deletes the dedicated browser profile. |
+| `3ch0 inspect URL` | Lists video sources, resolutions, audio, captions/transcripts, chapters and discovery notes. |
+| `3ch0 download URL` | Downloads the selected sources with embedded subtitles and chapters, then verifies them. |
+| `3ch0 transcript URL` | Exports the platform transcript (or a locally generated one) as VTT/SRT/TXT/JSON. |
+| `3ch0 chapters validate FILE` | Validates a chapter JSON file, optionally against `--duration` or `--media`. |
+| `3ch0 chapters show MEDIA` | Lists the chapters actually embedded in a media file (from ffprobe). |
 
-Every command accepts `--json`, `--quiet/-q`, `--verbose/-v`, `--no-color`, `--ascii` and
-`--non-interactive`, and `-h` for help. Put these options **after** the subcommand
-(`inspect URL --json`). Commands that contact Echo360 also take `--auth`, `--request-file`,
-`--timeout` and `--profile-dir`.
+Every command accepts `--json`, `--quiet/-q`, `--verbose/-v`, `--no-color`, `--ascii`,
+`--non-interactive` and `--plain` (no live display), and `-h` for help. Put these options
+**after** the subcommand (`inspect URL --json`). Commands that contact Echo360 also take
+`--auth`, `--request-file`, `--timeout` and `--profile-dir`.
 
 ### Common workflows
 
 ```zsh
 # Machine-readable inspection
-echo360-dl inspect 'CLASSROOM_URL' --json
+3ch0 inspect 'CLASSROOM_URL' --json
 
 # Everything, best quality, platform captions and native chapters if present
-echo360-dl download 'CLASSROOM_URL' --streams all --quality best \
+3ch0 download 'CLASSROOM_URL' --streams all --quality best \
   --subtitles auto --chapters auto --output ~/Downloads
 
 # Source 2 only, at most 720p, English captions, chapters from your own file, no prompts
-echo360-dl download 'CLASSROOM_URL' --streams 2 --quality 720p \
+3ch0 download 'CLASSROOM_URL' --streams 2 --quality 720p \
   --subtitles en --chapters-file chapters.json --non-interactive
 
 # Export the platform transcript as WebVTT
-echo360-dl transcript 'CLASSROOM_URL' --language en --format vtt
+3ch0 transcript 'CLASSROOM_URL' --language en --format vtt
 
 # No platform transcript? Generate one locally once (shared audio), embed it in every source
-echo360-dl download 'CLASSROOM_URL' --streams all --transcribe local --non-interactive \
+3ch0 download 'CLASSROOM_URL' --streams all --transcribe local --non-interactive \
   --allow-model-download
 
 # Audio only, with chapters every 10 minutes
-echo360-dl download 'CLASSROOM_URL' --streams audio --chapters interval --chapter-interval 10m
+3ch0 download 'CLASSROOM_URL' --streams audio --chapters interval --chapter-interval 10m
 
 # MKV container (keeps WebVTT styling and speaker tags)
-echo360-dl download 'CLASSROOM_URL' --streams all --container mkv
+3ch0 download 'CLASSROOM_URL' --streams all --container mkv
 ```
 
 Sample outputs (sanitized, fictional identifiers):
@@ -145,9 +231,9 @@ Sample outputs (sanitized, fictional identifiers):
 To watch the professor's screen and the camera together in one video:
 
 ```zsh
-echo360-dl download 'CLASSROOM_URL' --streams all --layout side-by-side   # left | right
-echo360-dl download 'CLASSROOM_URL' --streams all --layout top-bottom     # top / bottom
-echo360-dl download 'CLASSROOM_URL' --streams 1,2 --layout side-by-side --layout-order 2,1
+3ch0 download 'CLASSROOM_URL' --streams all --layout side-by-side   # left | right
+3ch0 download 'CLASSROOM_URL' --streams all --layout top-bottom     # top / bottom
+3ch0 download 'CLASSROOM_URL' --streams 1,2 --layout side-by-side --layout-order 2,1
 ```
 
 - `--layout separate` (the default) keeps one file per source. `side-by-side` puts the first
@@ -211,7 +297,7 @@ the track title:
   whenever converting it would lose styling or information. Caption files are kept
   byte-for-byte; a platform JSON file has signed URLs and tokens redacted before it is saved.
   `--no-sidecars` turns them off.
-- `transcript --format json` always uses echo360-dl's own schema (version 1, with
+- `transcript --format json` always uses 3ch0's own schema (version 1, with
   provenance), never the platform's raw JSON.
 
 ## Chapters
@@ -260,8 +346,8 @@ Chapter file schema, version 1 (see [`examples/chapters.sample.json`](examples/c
   Titles may contain any Unicode as well as `= ; # \`; these are escaped correctly.
 
 ```zsh
-echo360-dl chapters validate chapters.json --media 'lecture.mp4'
-echo360-dl chapters show 'lecture.mp4'
+3ch0 chapters validate chapters.json --media 'lecture.mp4'
+3ch0 chapters show 'lecture.mp4'
 ```
 
 ## Local transcription
@@ -303,6 +389,11 @@ selected source.
 <course> - <YYYY-MM-DD> - <title> [<id>].chapters.json
 ```
 
+- `--name NAME` (`-n`) replaces `<course> - <YYYY-MM-DD> - <title> [<id>]` for every file,
+  sidecars included. A download with one media file (one source, `--streams audio`, or one
+  combined layout) is saved as `NAME.mp4`. With several, each gets ` - <source>`, e.g.
+  `NAME - Source 1.mp4`. A typed `.mp4`/`.mkv`/`.m4a` is dropped because the container sets
+  the extension. To choose the folder, use `--output DIR`.
 - Missing metadata falls back to `Echo360 lesson [<id>]`.
 - `<id>` is a stable 10-character hash of the full lesson id. Lessons in the same course share
   a lesson-id prefix, so a hash avoids name collisions.
@@ -328,7 +419,7 @@ How a download is finalised:
   headers and no URL query strings. A `--json` run never prompts.
 - `--non-interactive` never prompts and **never opens a login window**. A missing choice (for
   example `--streams`) exits 2 and names the flag to add. A missing or expired login exits 3
-  and tells you to run `echo360-dl auth login`.
+  and tells you to run `3ch0 auth login`.
 - Interactive mode is used only when stdin and stderr are terminals and neither `--json` nor
   `--non-interactive` is given.
 - `--quiet` prints only errors and the final list of outputs. `--verbose` adds debug detail
@@ -358,7 +449,7 @@ cookies** that are scoped to a single recording. That is why copying only the st
 HTTP 403.
 
 **Normal path: the dedicated browser profile.**
-- `echo360-dl auth login` opens a separate Chromium profile kept in
+- `3ch0 auth login` opens a separate Chromium profile kept in
   `~/Library/Application Support/echo360-dl/browser-profile` (mode 0700). It never touches
   your everyday browser. You complete SSO, MFA and pop-ups yourself; credentials are never
   typed or stored by the tool.
@@ -386,7 +477,7 @@ HTTP 403.
   next run.
 - **Background traffic**: repeated or unrelated JSON requests (heartbeats, analytics) don't
   hold discovery open.
-- **Browser profile safety**: echo360-dl uses, and `auth logout` deletes, only directories it
+- **Browser profile safety**: 3ch0 uses, and `auth logout` deletes, only directories it
   created (marked with `.echo360-dl-profile`) or the default location. Pointing
   `--profile-dir` at your everyday Chrome profile is refused.
 
@@ -394,7 +485,7 @@ HTTP 403.
 `s1_av.m3u8` request → *Copy as cURL*, save it to a file, then run:
 
 ```zsh
-echo360-dl inspect 'CLASSROOM_URL' --request-file ~/path/to/request.txt
+3ch0 inspect 'CLASSROOM_URL' --request-file ~/path/to/request.txt
 ```
 
 - The file is **parsed as data and never executed**. Only cookies and a few harmless headers
@@ -409,16 +500,16 @@ echo360-dl inspect 'CLASSROOM_URL' --request-file ~/path/to/request.txt
 
 | Symptom | Fix |
 | --- | --- |
-| `Login required` (exit 3) | `echo360-dl auth login`, then retry. `auth status` checks the session. |
+| `Login required` (exit 3) | `3ch0 auth login`, then retry. `auth status` checks the session. |
 | Source shown as `forbidden (403 — may exist)` | Normal for sources that don't exist. If the source plays in the browser, sign in again and retry with `--streams N`. |
 | `No platform transcript found` | The lesson has none that discovery could see. Use `--transcribe local`. |
 | `Speech model … is not downloaded yet` (exit 6) | Add `--allow-model-download`, or run interactively and confirm. |
 | `faster-whisper` crashes with `metadata_errors` | PyAV ≥ 17 is incompatible with faster-whisper 1.2.1. The `transcribe` extra pins `av<17`; reinstall with `uv tool install --force '.[transcribe]'`. |
-| Playwright says the browser is missing | `"$(uv tool dir)/echo360-dl/bin/python" -m playwright install chromium` (`doctor` prints the exact command) |
+| Playwright says the browser is missing | `"$(uv tool dir)/3ch0/bin/python" -m playwright install chromium` (`doctor` prints the exact command) |
 | `CERTIFICATE_VERIFY_FAILED` | Use the installed tool (it ships certifi). python.org Python without "Install Certificates" breaks `urllib`. |
 | Dev checkout: `ModuleNotFoundError: echo360_dl` from `uv run` | `~/Documents` is synced by iCloud, which keeps marking `.venv` *hidden*, and Python 3.13 skips hidden `.pth` files. Run `chflags -R nohidden .venv`, or keep the dev environment outside iCloud: `export UV_PROJECT_ENVIRONMENT=~/.venvs/echo360-dl`. The installed tool (`uv tool install .`) is not affected. |
-| `auth status` says sign-in "could not be confirmed" | The page loaded, but no Echo360 session cookie was found. Run `echo360-dl auth login` again. If it keeps happening, send the `--save-trace` output so the real cookie name can be checked. |
-| `… is not an echo360-dl browser profile` | `--profile-dir` points at a non-empty folder echo360-dl didn't create. Use a new folder, or omit the option. |
+| `auth status` says sign-in "could not be confirmed" | The page loaded, but no Echo360 session cookie was found. Run `3ch0 auth login` again. If it keeps happening, send the `--save-trace` output so the real cookie name can be checked. |
+| `… is not a 3ch0 browser profile` | `--profile-dir` points at a non-empty folder 3ch0 didn't create. Use a new folder, or omit the option. |
 | Inspect shows no title/chapters | Metadata shapes are not yet verified on real lessons (see below). Run `inspect URL --save-trace trace.json` and look at the sanitized trace (URLs without queries, JSON key structure only, no values). |
 | Interrupted download | Run the same command again. It resumes from `<output>/.echo360-dl-<id>/`. |
 
@@ -439,7 +530,7 @@ echo360-dl inspect 'CLASSROOM_URL' --request-file ~/path/to/request.txt
   - A scan of every output and log found none of the session's secret values.
 - yt-dlp handled Echo360's byte-range fMP4 HLS with host-scoped cookies.
 
-**Fixture-tested** (about 400 automated tests, including real ffmpeg/ffprobe runs on
+**Fixture-tested** (about 550 automated tests, including real ffmpeg/ffprobe runs on
 synthetic media served by a local HLS server that requires cookies):
 - one- and two-source downloads, quality and source selection, audio only
 - 403 on one source, expired authorisation with exactly one refresh
@@ -449,6 +540,22 @@ synthetic media served by a local HLS server that requires cookies):
 - Unicode and malformed subtitles, untimed transcripts, missing languages
 - non-interactive behaviour, JSON free of secrets and styling, narrow and no-colour output
 - cURL import that never executes anything
+- the terminal display:
+  - the view fits every width and height tested, in ASCII as well
+  - rates are measured, and resumed or reused bytes are not counted
+  - unknown totals are never guessed
+  - streams waiting for a download slot are sized early without extra playlist requests
+  - the encode bar and estimate
+  - redraws rewrite only changed lines and are synchronized
+  - keys work, and the terminal mode is restored
+- the real CLI and pipeline in a pseudo-terminal against the local server:
+  - live view, ↑/↓ and `d`
+  - Ctrl-C (exit 130, terminal restored)
+  - a 403 source (exit 5), a side-by-side encode
+  - 56 columns with `NO_COLOR` and `--ascii`
+  - redirected output, `--json` and `-q`
+  - These ran in an emulated terminal (pyte), not in a particular terminal app, and the
+    display has not yet been run against real Echo360.
 
 **Live-tested through the browser** (2026-11-07, one lesson):
 - `auth login` and headless discovery through the dedicated profile, including Echo360's
@@ -464,7 +571,7 @@ synthetic media served by a local HLS server that requires cookies):
 - Captions: `https://captions.echo360.ca/<institution>/captions-<media>-<timestamp>.vtt`.
 
 - Sign-in persistence: after `auth login`, both `auth status` and a headless `inspect` stay
-  signed in (session cookie `ECHO_JWT` present). echo360-dl saves and restores the
+  signed in (session cookie `ECHO_JWT` present). 3ch0 saves and restores the
   echo360.ca cookies itself (`echo360-dl-session.json`, 0600, inside the 0700 profile),
   because Chromium does not keep session cookies between launches.
 - This lesson exposes both a captions VTT and an automatic-transcript JSON with the same
@@ -515,6 +622,16 @@ synthetic media served by a local HLS server that requires cookies):
   use the default separate files when original quality matters. Only two sources can be
   combined, in a 50/50 arrangement (no picture-in-picture).
 - DRM-protected media is out of scope.
+- The live view shows only what the pipeline reports. It has no connection counts and no
+  per-fragment retry counts: yt-dlp handles fragment retries internally and does not report
+  them (they show up in `--verbose` output and in the details view). No checksums are
+  checked: *verify* means the ffprobe checks described above. Rates and the remaining time
+  appear only after a second or more of real data, and *peak* needs a full 3-second window.
+  If reading a waiting stream's playlist early fails, the overall total waits until that
+  stream starts. In that case, and only then, the download asks for the playlist again.
+- After the terminal is made **narrower** while the live view is running, a few lines of the
+  previous frame can stay on screen above it: the terminal re-wraps lines that were already
+  drawn. Making it wider is clean.
 
 ## Compatibility
 
@@ -522,8 +639,8 @@ synthetic media served by a local HLS server that requires cookies):
 
 | Old | New |
 | --- | --- |
-| `download_echo360.py URL` | `echo360-dl download URL --streams all` |
-| `--list-formats` | `echo360-dl inspect URL` |
+| `download_echo360.py URL` | `3ch0 download URL --streams all` |
+| `--list-formats` | `3ch0 inspect URL` |
 | `--output-dir DIR` | `--output DIR` |
 | `--request-file FILE` | `--request-file FILE` (no longer read implicitly from `~/Downloads/work/`) |
 | `--browser-profile DIR` | `--profile-dir DIR` (default moved to the app data dir) |
@@ -535,13 +652,18 @@ The original script is kept for reference in `docs/dev/legacy/download_echo360.o
 
 ```zsh
 uv sync --group dev --extra transcribe
-uv run --group dev pytest -q          # ~460 tests, ~35 s, needs ffmpeg
+uv run --group dev pytest -q          # ~550 tests, ~35 s, needs ffmpeg
 uv run --group dev ruff check src tests
 uv run --group dev pytest -m live     # opt-in, needs ECHO360_DL_LIVE_URL and a signed-in profile
 PYTHONPATH=src uv run python -m echo360_dl --help   # run the working copy, not the installed tool
 ```
 
-After changing the code, run `uv tool install --reinstall .` to update the installed command.
+After changing the code, run `uv tool install --reinstall .` to update the installed command
+(the first time after the rename: `uv tool uninstall echo360-dl && uv tool install .`).
+The terminal display lives in `cli/`: `theme.py` (styles, labels, glyphs), `telemetry.py`
+(what the pipeline reported and the rates derived from it), `dashboard.py` (the boxed view,
+a pure function), `live.py` (redrawing without flicker), `keys.py` and `progress.py` (the
+live, line and quiet sinks).
 
 **Working with Claude Code** (`CLAUDE.md`, `.claude/`):
 - `CLAUDE.md` holds the project rules: secrets, the observed-vs-hypothesis rule for Echo360

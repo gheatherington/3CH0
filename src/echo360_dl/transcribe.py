@@ -112,7 +112,7 @@ def resolve_backend(name: str) -> str:
                 return candidate
         raise DependencyError(
             "No local transcription backend is installed.",
-            hint="From the echo360-dl project folder run: "
+            hint="From the 3CH0 project folder run: "
                  "uv tool install --force '.[transcribe]' (see README: Local transcription).")
     if name not in infos:
         raise UsageError(f"Unknown transcription backend {name!r}.",

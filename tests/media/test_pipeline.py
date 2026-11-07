@@ -195,6 +195,22 @@ def test_two_sources_mkv_shared_audio_downloaded_once(server, tmp_path):
     assert "<v Dr. Alice Smith>Welcome &amp; hello" in extracted  # speaker kept in MKV
 
 
+@pytest.mark.parametrize("sources, expected", [
+    ((1,), ["Week 3.mp4"]),
+    ((1, 2), ["Week 3 - Source 1.mp4", "Week 3 - Source 2.mp4"]),
+])
+def test_custom_name(server, tmp_path, sources, expected):
+    rec = make_recording(server.base_url, captions=_captions(), chapters=CHAPTERS)
+    result = run_download(_request(rec, tmp_path, source_indexes=sources, name="Week 3"),
+                          FakeSession(server, TRANSCRIPTS), progress=NullProgress())
+    assert result.status is ResultStatus.OK, result.failures
+    assert [o.path.name for o in _video_outputs(result)] == expected
+    sidecars = {o.path.name for o in result.outputs if o.kind is not OutputKind.VIDEO}
+    assert {"Week 3.en.vtt", "Week 3.fr.srt", "Week 3.chapters.json"} <= sidecars
+    assert all(o.path.name.startswith("Week 3") for o in result.outputs)
+    assert all(o.verify.ok for o in _video_outputs(result))
+
+
 def test_quality_and_source_selection(server, tmp_path):
     rec = make_recording(server.base_url)
     result = run_download(_request(rec, tmp_path, source_indexes=(2,),
@@ -554,3 +570,41 @@ def test_inconsistent_native_chapters_warn_but_do_not_fail(server, tmp_path):
     result = run_download(_request(rec, tmp_path), FakeSession(server), progress=NullProgress())
     assert result.status is ResultStatus.OK, result.failures
     assert any("Native chapters were not embedded" in w for w in result.warnings)
+
+
+class QueueAwareProgress(RecordingProgress):
+    """A sink with the optional ``task_queued`` extra (like the CLI's live view)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.sequence: list[tuple[str, str, float | None]] = []
+
+    def task_queued(self, task_id: str, description: str, unit: str = "bytes",
+                    total: float | None = None) -> None:
+        with self.lock:
+            self.sequence.append(("queued", task_id, total))
+
+    def task_start(self, task_id: str, description: str, total: float | None = None,
+                   unit: str = "bytes") -> None:
+        with self.lock:
+            self.sequence.append(("start", task_id, total))
+        super().task_start(task_id, description, total, unit)
+
+
+def test_waiting_components_report_their_size_early_without_extra_requests(server, tmp_path):
+    rec = make_recording(server.base_url)
+    progress = QueueAwareProgress()
+    result = run_download(_request(rec, tmp_path, concurrency=1), FakeSession(server),
+                          progress=progress)
+    assert result.status is ResultStatus.OK, result.failures
+    # One worker, three components: the two waiting ones get their exact size up front,
+    # before their download starts.
+    seq = progress.sequence
+    sized = [(i, task) for i, (kind, task, total) in enumerate(seq) if kind == "queued" and total]
+    assert len(sized) == 2
+    for i, task in sized:
+        assert seq.index(("start", task, None)) > i
+    # The read-ahead playlist is reused: every media playlist is still fetched once.
+    for name in ("s0q1", "s1q1", "s2q1"):
+        assert server.count(f"/lesson/{name}.m3u8") == 1, name
+    assert all(o.verify.ok for o in _video_outputs(result))

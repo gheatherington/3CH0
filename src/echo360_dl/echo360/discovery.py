@@ -177,7 +177,7 @@ def build_recording(ref: ClassroomRef, state: CaptureState, session: Echo360Sess
         if completion_reason == "timeout":
             raise UnavailableError(
                 f"No video playlist was requested by the player within {timeout:.0f} s.",
-                hint="If the saved sign-in may have expired, run 'echo360-dl auth login'. "
+                hint="If the saved sign-in may have expired, run '3ch0 auth login'. "
                      "Otherwise check that the lesson plays in a browser, try a longer "
                      "--timeout, or use --save-trace to inspect what was observed.")
         raise UnavailableError("No video playlist was found for this lesson.",

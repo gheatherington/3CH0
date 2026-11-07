@@ -599,6 +599,9 @@ class DownloadRequest:
     #: With a composite layout, also write each source as its own stream-copied file.
     keep_separate: bool = False
     encoder: Encoder = Encoder.AUTO
+    #: User-chosen base name replacing ``<course> - <date> - <title> [<short_id>]`` for
+    #: every output (media and sidecars). None -> the automatic lesson name.
+    name: str | None = None
 
 
 @dataclass

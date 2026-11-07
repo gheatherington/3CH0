@@ -6,6 +6,13 @@ Layout (``[short_id]`` always present so names stay unique and greppable)::
     <course> - <YYYY-MM-DD> - <title> [<short_id>] - audio.m4a
     <course> - <YYYY-MM-DD> - <title> [<short_id>].en.vtt        (sidecars)
 
+With a user-chosen name (``--name``) the lesson part is replaced by that name, and a
+download producing exactly one media file drops the ``- <label>`` part::
+
+    <name>.mp4                     (one source, audio only, or one combined picture)
+    <name> - <Source 1>.mp4        (several media files)
+    <name>.en.vtt                  (sidecars)
+
 Unknown parts are omitted; without a title the head is "Echo360 lesson". Names are
 NFC-normalised Unicode with path separators, control/bidi characters, Windows
 reserved characters/names, leading dots and trailing spaces/dots removed, and are
@@ -17,7 +24,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from echo360_dl.models import Recording
+from echo360_dl.models import DownloadRequest, Layout, Recording
 
 MAX_NAME_BYTES = 180
 #: Budget for the base name; extensions such as ``.en-CA.transcript.platform.json``
@@ -115,6 +122,41 @@ def media_basename(recording: Recording, label: str | None) -> str:
     and every file of a lesson shares one prefix."""
     label_part = safe_component(label or "audio", fallback="audio", max_bytes=_LABEL_BUDGET)
     return f"{lesson_basename(recording)} - {label_part}"
+
+
+def custom_basename(name: str) -> str:
+    """A user-chosen base name made filesystem-safe and capped like the automatic one."""
+    return safe_component(name, fallback=DEFAULT_HEAD, max_bytes=BASE_BUDGET)
+
+
+def single_media_output(request: DownloadRequest) -> bool:
+    """True when the request asks for exactly one media file (decided from the request,
+    not from what succeeds, so names never depend on another source failing)."""
+    if request.audio_only:
+        return True
+    if request.layout is not Layout.SEPARATE:
+        return not request.keep_separate
+    return len(request.source_indexes or request.recording.sources) == 1
+
+
+def request_basename(request: DownloadRequest) -> str:
+    """Base name for this request's sidecars: ``--name`` if given, else the lesson name."""
+    if request.name:
+        return custom_basename(request.name)
+    return lesson_basename(request.recording)
+
+
+def request_media_basename(request: DownloadRequest, label: str | None) -> str:
+    """Media base name for this request. Without ``--name`` this is
+    :func:`media_basename`; with it, ``<name>`` for a single output, else
+    ``<name> - <label>``."""
+    if not request.name:
+        return media_basename(request.recording, label)
+    base = custom_basename(request.name)
+    if single_media_output(request):
+        return base
+    label_part = safe_component(label or "audio", fallback="audio", max_bytes=_LABEL_BUDGET)
+    return f"{base} - {label_part}"
 
 
 def language_tag(code: str | None) -> str:

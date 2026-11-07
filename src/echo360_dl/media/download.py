@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import atexit
 import contextlib
+import dataclasses
 import http.cookiejar
 import json
 import os
@@ -36,7 +37,7 @@ import tempfile
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
@@ -398,6 +399,15 @@ class DownloadContext:
     progress: ProgressSink
     cancel: threading.Event
     retries: int = 3
+    #: Media playlists read ahead by :func:`prefetch_size`, used once by the download.
+    playlists: dict[str, str] = field(default_factory=dict)
+    started: set[str] = field(default_factory=set)
+    _locks: dict[str, threading.Lock] = field(default_factory=dict)
+    _locks_guard: threading.Lock = field(default_factory=threading.Lock)
+
+    def playlist_lock(self, key: str) -> threading.Lock:
+        with self._locks_guard:
+            return self._locks.setdefault(key, threading.Lock())
 
 
 def _ydl_options(jar: Path, auth: AuthContext, ctx: DownloadContext, component: Component,
@@ -452,9 +462,47 @@ def _fetch_playlist(ydl: Any, url: str, ctx: DownloadContext, label: str) -> str
                        f"attempts ({scrub(str(last))}).")
 
 
+@contextlib.contextmanager
+def _ydl_session(component: Component, ctx: DownloadContext, auth: AuthContext,
+                 logger: _Logger, hook: Callable[[dict[str, Any]], None]):
+    """A YoutubeDL instance with this component's cookie jar (deleted afterwards)."""
+    import yt_dlp
+
+    with ctx.work.cookie_jar(component, auth) as jar, \
+            yt_dlp.YoutubeDL(_ydl_options(jar, auth, ctx, component, logger, hook)) as ydl:
+        # Python's default policy lets host-only cookies match subdomains; be strict.
+        ydl.cookiejar.set_policy(http.cookiejar.DefaultCookiePolicy(
+            strict_ns_domain=http.cookiejar.DefaultCookiePolicy.DomainStrictNonDomain))
+        yield ydl
+
+
+def prefetch_size(component: Component, ctx: DownloadContext) -> int | None:
+    """Read the media playlist of a component that is still waiting for a worker, to learn
+    its exact size early. The text is kept and used by the download itself, so this adds
+    no request (except when this read fails and the download asks again). Best effort:
+    one attempt, any failure returns None and the download proceeds as usual."""
+    if ctx.cancel.is_set() or ctx.work.completed(component) is not None:
+        return None
+    with ctx.playlist_lock(component.key):
+        if component.key in ctx.started or component.key in ctx.playlists:
+            return None
+        _generation, auth = ctx.refresher.current()
+        once = dataclasses.replace(ctx, retries=0)
+        try:
+            with _ydl_session(component, ctx, auth, _Logger(ctx.progress, component.label),
+                              lambda _d: None) as ydl:
+                text = _fetch_playlist(ydl, component.url, once, component.label)
+        except Exception as exc:  # best effort; the download reports real problems
+            ctx.progress.debug(f"{component.label}: size not read ahead ({scrub(str(exc))})")
+            return None
+        if "#EXTM3U" not in text or "#EXT-X-STREAM-INF" in text:
+            return None
+        ctx.playlists[component.key] = text
+        return playlist_total_bytes(text)
+
+
 def _attempt(component: Component, ctx: DownloadContext, auth: AuthContext,
              task_id: str) -> Path:
-    import yt_dlp
     from yt_dlp.utils import DownloadError
 
     target = ctx.work.file_for(component)
@@ -472,12 +520,12 @@ def _attempt(component: Component, ctx: DownloadContext, auth: AuthContext,
         eta = (total - done) / speed if total and done is not None and speed else None
         ctx.progress.task_update(task_id, completed=done, total=total, rate=speed, eta=eta)
 
-    with ctx.work.cookie_jar(component, auth) as jar, \
-            yt_dlp.YoutubeDL(_ydl_options(jar, auth, ctx, component, logger, hook)) as ydl:
-        # Python's default policy lets host-only cookies match subdomains; be strict.
-        ydl.cookiejar.set_policy(http.cookiejar.DefaultCookiePolicy(
-            strict_ns_domain=http.cookiejar.DefaultCookiePolicy.DomainStrictNonDomain))
-        playlist = _fetch_playlist(ydl, component.url, ctx, component.label)
+    with _ydl_session(component, ctx, auth, logger, hook) as ydl:
+        with ctx.playlist_lock(component.key):
+            ctx.started.add(component.key)
+            playlist = ctx.playlists.pop(component.key, None)  # read ahead, used once
+        if playlist is None:
+            playlist = _fetch_playlist(ydl, component.url, ctx, component.label)
         if "#EXTM3U" not in playlist:
             raise UnsupportedError(f"{component.label}: the server did not return an HLS "
                                    "playlist.")
@@ -519,11 +567,16 @@ def _attempt(component: Component, ctx: DownloadContext, auth: AuthContext,
     return target
 
 
+def component_task_id(component: Component) -> str:
+    """Progress task id of a component download (``download:<kind>-<rendition>``)."""
+    return f"download:{component.key}"
+
+
 def download_component(component: Component, ctx: DownloadContext) -> Path:
     """Download (or reuse/resume) one component. Raises Echo360DLError subclasses:
     AuthError (refresh failed), UnavailableError (403/404 after refresh),
     NetworkError, UnsupportedError or CancelledError."""
-    task_id = f"download:{component.key}"
+    task_id = component_task_id(component)
     reused = ctx.work.completed(component)
     ctx.progress.task_start(task_id, component.label, total=None, unit="bytes")
     if reused is not None:
@@ -581,10 +634,10 @@ def _forbidden(component: Component, status: int | None) -> Echo360DLError:
     if status == 401:
         return UnauthorizedError(
             f"{component.label}: authorisation refused (HTTP 401) even after refreshing it.",
-            hint="Run `echo360-dl auth login` and try again.")
+            hint="Run `3ch0 auth login` and try again.")
     return ForbiddenError(
         f"{component.label}: access refused (HTTP {status or 403}) even with refreshed "
         "authorisation.",
         hint="Echo360 answers 403 both for content this account may not access and for "
              "content that does not exist. If it plays in the browser, run "
-             "`echo360-dl auth login` and try again.")
+             "`3ch0 auth login` and try again.")
