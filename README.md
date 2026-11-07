@@ -9,8 +9,9 @@ chapter markers, and generate a local transcript when the platform has none.
 > Use it in line with your institution's policies.
 
 Verified with **echo360.ca** classroom URLs on macOS (Apple Silicon), Python 3.12/3.13, FFmpeg
-9.0, yt-dlp 2026.10.26 and Playwright Chromium. Other Echo360 regions and operating systems
-are untested and not claimed.
+9.0, yt-dlp 2026.10.26 and Playwright Chromium. The install steps below cover macOS, Linux and
+Windows, but only macOS has been tested end to end. Other Echo360 regions are untested and
+not claimed.
 
 ## Contents
 - [Install](#install)
@@ -32,24 +33,131 @@ are untested and not claimed.
 
 ## Install
 
-Requirements: [uv](https://docs.astral.sh/uv/), FFmpeg (provides `ffprobe`), and Playwright's
-Chromium.
+3CH0 installs straight from GitHub with [uv](https://docs.astral.sh/uv/). You need:
 
-```zsh
-brew install ffmpeg uv
-cd /path/to/3CH0                       # this project folder
-uv tool install .                      # installs `3ch0` (and the old name `echo360-dl`)
-                                       # after updating the code: uv tool install --reinstall .
-"$(uv tool dir)/3ch0/bin/python" -m playwright install chromium   # one-time (~150 MB)
-3ch0 doctor                            # checks everything
+- **uv**: installs 3CH0 and, if needed, a suitable Python (3.11 or newer) by itself;
+- **FFmpeg**: provides `ffmpeg` and `ffprobe`;
+- **Chromium for Playwright**: the separate browser 3CH0 signs in with (one time, ~150 MB).
+
+No Python setup, `git` or clone is needed.
+
+### 1. Install uv and FFmpeg
+
+**macOS** ([Homebrew](https://brew.sh)):
+
+```sh
+brew install uv ffmpeg
 ```
 
-Optional local transcription (see [Local transcription](#local-transcription)):
+**Linux**:
 
-```zsh
-uv tool install --force '.[transcribe]'       # faster-whisper (CPU)
-uv tool install --force '.[transcribe-mlx]'   # mlx-whisper (Apple GPU), Apple Silicon only
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+sudo apt install ffmpeg            # Debian/Ubuntu
+# sudo dnf install ffmpeg          # Fedora (enable RPM Fusion for the full build)
+# sudo pacman -S ffmpeg            # Arch
 ```
+
+**Windows** (PowerShell):
+
+```powershell
+winget install --id astral-sh.uv -e
+winget install --id Gyan.FFmpeg -e
+```
+
+Then **open a new terminal** so `uv`, `ffmpeg` and `ffprobe` are on your `PATH`.
+
+### 2. Install 3CH0
+
+Same command on every OS:
+
+```sh
+uv tool install git+https://github.com/gheatherington/3CH0
+```
+
+This installs the `3ch0` command (and its old name `echo360-dl`). If uv warns that its tool
+folder is not on your `PATH`, run `uv tool update-shell` and open a new terminal.
+
+### 3. Install Chromium for Playwright (one time)
+
+Run this with the Python inside 3CH0's own environment, so the browser matches the Playwright
+version 3CH0 uses.
+
+**macOS / Linux**:
+
+```sh
+"$(uv tool dir)/3ch0/bin/python" -m playwright install chromium
+```
+
+On Linux, if Chromium later fails to start because of missing system libraries, run the same
+command with `--with-deps` (it uses `sudo` to install them):
+
+```sh
+"$(uv tool dir)/3ch0/bin/python" -m playwright install --with-deps chromium
+```
+
+**Windows** (PowerShell):
+
+```powershell
+& "$(uv tool dir)\3ch0\Scripts\python.exe" -m playwright install chromium
+```
+
+### 4. Check the setup
+
+```sh
+3ch0 doctor
+```
+
+`doctor` checks Python, FFmpeg/ffprobe, yt-dlp, Playwright's Chromium, the output folder and
+the browser profile, and prints a fix for anything missing. (Its FFmpeg hints mention
+Homebrew; on Linux or Windows use the package manager from step 1.) Then continue with the
+[Quick start](#quick-start).
+
+> **Windows:** the examples in this README quote URLs with single quotes (`'…'`), which works
+> in PowerShell. In `cmd.exe`, use double quotes instead. The live view's keyboard shortcuts
+> (`↑`/`↓`, `d`) need a POSIX terminal and are off on Windows; the live view itself and
+> Ctrl-C still work.
+
+### Optional: local transcription
+
+See [Local transcription](#local-transcription). Reinstall with an extra:
+
+```sh
+# faster-whisper (CPU), any OS
+uv tool install --force "3ch0[transcribe] @ git+https://github.com/gheatherington/3CH0"
+# mlx-whisper (Apple GPU), Apple Silicon Macs only
+uv tool install --force "3ch0[transcribe-mlx] @ git+https://github.com/gheatherington/3CH0"
+```
+
+### Update, pin or uninstall
+
+```sh
+uv tool upgrade 3ch0          # latest version from GitHub (keeps your extras)
+uv tool install --force "git+https://github.com/gheatherington/3CH0@<tag-or-commit>"
+uv tool uninstall 3ch0        # remove the command
+```
+
+If an update brings a newer Playwright, `3ch0 doctor` reports the browser as missing; repeat
+step 3. Uninstalling keeps your saved login and speech models. Run `3ch0 auth logout` first
+to delete the login, or remove the folders below.
+
+| Stored data | macOS | Linux | Windows |
+| --- | --- | --- | --- |
+| Browser profile (your login) | `~/Library/Application Support/echo360-dl/browser-profile` | `~/.local/share/echo360-dl/browser-profile` | `%LOCALAPPDATA%\echo360-dl\browser-profile` |
+| Speech models | `~/Library/Caches/echo360-dl/models` | `~/.cache/echo360-dl/models` | `%LOCALAPPDATA%\echo360-dl\Cache\models` |
+
+Set `ECHO360_DL_HOME` to keep everything under one folder instead (`data/`, `cache/` and
+`config/` inside it). Downloads go to your Downloads folder unless you pass `--output`.
+
+### From a local copy
+
+```sh
+git clone https://github.com/gheatherington/3CH0
+cd 3CH0
+uv tool install .             # after pulling changes: uv tool install --reinstall .
+```
+
+Extras work the same way: `uv tool install --force '.[transcribe]'`.
 
 The original script still works as a thin wrapper: `python3 download_echo360.py URL` runs
 `3ch0 download URL --streams all` (see [Compatibility](#compatibility)).
@@ -57,8 +165,9 @@ The original script still works as a thin wrapper: `python3 download_echo360.py 
 **Upgrading from `echo360-dl`.** The package is now called `3ch0`, so uv treats it as a new
 tool. Remove the old one first, then install as above:
 
-```zsh
-uv tool uninstall echo360-dl && uv tool install .    # add '.[transcribe]' if you used it
+```sh
+uv tool uninstall echo360-dl
+uv tool install git+https://github.com/gheatherington/3CH0
 ```
 
 Both `3ch0` and `echo360-dl` are installed and run the same program with the same commands,
@@ -357,10 +466,12 @@ when you ask** (`--transcribe local`) and, by default, only when there is no pla
 transcript. The shared audio is transcribed **once** and the result is embedded in every
 selected source.
 
-| Backend | Install (from the project folder) | Hardware |
+| Backend | Install | Hardware |
 | --- | --- | --- |
-| `faster-whisper` | `uv tool install --force '.[transcribe]'` | **CPU** (int8). CTranslate2 has no Apple GPU backend. |
-| `mlx-whisper` | `uv tool install --force '.[transcribe-mlx]'` | Apple GPU via MLX/Metal (Apple Silicon only; heavier install that pulls PyTorch) |
+| `faster-whisper` | `uv tool install --force "3ch0[transcribe] @ git+https://github.com/gheatherington/3CH0"` | **CPU** (int8), any OS. CTranslate2 has no Apple GPU backend. |
+| `mlx-whisper` | `uv tool install --force "3ch0[transcribe-mlx] @ git+https://github.com/gheatherington/3CH0"` | Apple GPU via MLX/Metal (Apple Silicon only; heavier install that pulls PyTorch) |
+
+From a local copy, use `'.[transcribe]'` or `'.[transcribe-mlx]'` instead.
 
 - `--transcribe-backend auto` picks mlx-whisper if it is installed on Apple Silicon, otherwise
   faster-whisper.
@@ -374,7 +485,8 @@ selected source.
 - Ctrl-C stops faster-whisper between segments. mlx-whisper has no way to interrupt, so it
   finishes the current file first.
 - Region codes such as `en-CA` are reduced to `en` for the speech model.
-- Models are stored in `~/Library/Caches/echo360-dl/models/`.
+- Models are stored in the per-user cache folder (macOS: `~/Library/Caches/echo360-dl/models/`;
+  other systems: see [the table under Install](#update-pin-or-uninstall)).
 - Measured here: faster-whisper `tiny` on CPU transcribed a 54-minute lecture in about 2
   minutes on Apple Silicon. Larger models are slower but more accurate.
 
@@ -449,8 +561,9 @@ cookies** that are scoped to a single recording. That is why copying only the st
 HTTP 403.
 
 **Normal path: the dedicated browser profile.**
-- `3ch0 auth login` opens a separate Chromium profile kept in
-  `~/Library/Application Support/echo360-dl/browser-profile` (mode 0700). It never touches
+- `3ch0 auth login` opens a separate Chromium profile kept in your per-user data folder
+  (macOS: `~/Library/Application Support/echo360-dl/browser-profile`; other systems: see
+  [the table under Install](#update-pin-or-uninstall)), private to your user. It never touches
   your everyday browser. You complete SSO, MFA and pop-ups yourself; credentials are never
   typed or stored by the tool.
 - Later commands reuse that profile **headlessly**. They load the classroom page, watch the
@@ -505,7 +618,9 @@ HTTP 403.
 | `No platform transcript found` | The lesson has none that discovery could see. Use `--transcribe local`. |
 | `Speech model … is not downloaded yet` (exit 6) | Add `--allow-model-download`, or run interactively and confirm. |
 | `faster-whisper` crashes with `metadata_errors` | PyAV ≥ 17 is incompatible with faster-whisper 1.2.1. The `transcribe` extra pins `av<17`; reinstall with `uv tool install --force '.[transcribe]'`. |
-| Playwright says the browser is missing | `"$(uv tool dir)/3ch0/bin/python" -m playwright install chromium` (`doctor` prints the exact command) |
+| Playwright says the browser is missing | Repeat [install step 3](#3-install-chromium-for-playwright-one-time) (`doctor` prints the exact command for your system) |
+| Linux: Chromium fails to start (missing `.so` libraries) | `"$(uv tool dir)/3ch0/bin/python" -m playwright install --with-deps chromium` |
+| `3ch0: command not found` after installing | Run `uv tool update-shell`, then open a new terminal. |
 | `CERTIFICATE_VERIFY_FAILED` | Use the installed tool (it ships certifi). python.org Python without "Install Certificates" breaks `urllib`. |
 | Dev checkout: `ModuleNotFoundError: echo360_dl` from `uv run` | `~/Documents` is synced by iCloud, which keeps marking `.venv` *hidden*, and Python 3.13 skips hidden `.pth` files. Run `chflags -R nohidden .venv`, or keep the dev environment outside iCloud: `export UV_PROJECT_ENVIRONMENT=~/.venvs/echo360-dl`. The installed tool (`uv tool install .`) is not affected. |
 | `auth status` says sign-in "could not be confirmed" | The page loaded, but no Echo360 session cookie was found. Run `3ch0 auth login` again. If it keeps happening, send the `--save-trace` output so the real cookie name can be checked. |
@@ -651,6 +766,7 @@ The original script is kept for reference in `docs/dev/legacy/download_echo360.o
 ## Development
 
 ```zsh
+git clone https://github.com/gheatherington/3CH0 && cd 3CH0
 uv sync --group dev --extra transcribe
 uv run --group dev pytest -q          # ~550 tests, ~35 s, needs ffmpeg
 uv run --group dev ruff check src tests
