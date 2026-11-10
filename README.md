@@ -115,8 +115,8 @@ Homebrew; on Linux or Windows use the package manager from step 1.) Then continu
 
 > **Windows:** the examples in this README quote URLs with single quotes (`'…'`), which works
 > in PowerShell. In `cmd.exe`, use double quotes instead. The live view's keyboard shortcuts
-> (`↑`/`↓`, `d`) need a POSIX terminal and are off on Windows; the live view itself and
-> Ctrl-C still work.
+> (`↑`/`↓`, `d`) need a POSIX terminal and are off on Windows. 3CH0 has not been run on
+> Windows yet, so please report anything that misbehaves.
 
 ### Optional: local transcription
 
@@ -601,7 +601,7 @@ HTTP 403.
 | Source shown as `forbidden (403 — may exist)` | Normal for sources that don't exist. If the source plays in the browser, sign in again and retry with `--streams N`. |
 | `No platform transcript found` | The lesson has none that discovery could see. Use `--transcribe local`. |
 | `Speech model … is not downloaded yet` (exit 6) | Add `--allow-model-download`, or run interactively and confirm. |
-| `faster-whisper` crashes with `metadata_errors` | PyAV ≥ 17 is incompatible with faster-whisper 1.2.1. The `transcribe` extra pins `av<17`; reinstall with `uv tool install --force '.[transcribe]'`. |
+| `faster-whisper` crashes with `metadata_errors` | PyAV ≥ 17 is incompatible with faster-whisper 1.2.1. The `transcribe` extra pins `av<17`; reinstall with the `transcribe` extra (see [Install](#optional-local-transcription)). |
 | Playwright says the browser is missing | Repeat [install step 3](#3-install-chromium-for-playwright-one-time) (`doctor` prints the exact command for your system) |
 | Linux: Chromium fails to start (missing `.so` libraries) | `"$(uv tool dir)/3ch0/bin/python" -m playwright install --with-deps chromium` |
 | `3ch0: command not found` after installing | Run `uv tool update-shell`, then open a new terminal. |
@@ -737,7 +737,7 @@ synthetic media served by a local HLS server that requires cookies):
 ```zsh
 git clone https://github.com/gheatherington/3CH0 && cd 3CH0
 uv sync --group dev --extra transcribe
-uv run --group dev pytest -q          # ~540 tests, ~35 s, needs ffmpeg
+uv run --group dev pytest -q          # ~550 tests, ~35 s, needs ffmpeg
 uv run --group dev ruff check src tests
 uv run --group dev pytest -m live     # opt-in, needs THREECH0_LIVE_URL and a signed-in profile
 PYTHONPATH=src uv run python -m threech0 --help   # run the working copy, not the installed tool
