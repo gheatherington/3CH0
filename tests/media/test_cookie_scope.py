@@ -7,6 +7,8 @@ import os
 import stat
 import urllib.request
 
+import pytest
+
 from threech0.media import download
 from threech0.media.download import Component, WorkDir
 from threech0.models import AuthContext, Cookie
@@ -49,6 +51,53 @@ def test_stale_jar_dirs_from_dead_processes_are_swept(tmp_path, monkeypatch):
     alive.mkdir()
     download.sweep_stale_jar_dirs()
     assert not dead.exists() and alive.exists()
+
+
+def test_windows_sweep_never_sends_a_signal(tmp_path, monkeypatch):
+    """On Windows ``os.kill(pid, 0)`` would send CTRL_C_EVENT, so it must not be used."""
+    monkeypatch.setattr(download.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(download, "_IS_WINDOWS", True)
+    monkeypatch.setattr(download.os, "kill", lambda *a: pytest.fail("os.kill was called"))
+    monkeypatch.setattr(download, "_windows_process_alive", lambda pid: pid == 222222)
+    dead = tmp_path / f"{download._JAR_PREFIX}111111-abc"
+    running = tmp_path / f"{download._JAR_PREFIX}222222-abc"
+    dead.mkdir()
+    running.mkdir()
+    download.sweep_stale_jar_dirs()
+    assert not dead.exists() and running.exists()
+
+
+class _FakeKernel32:
+    def __init__(self, handle, exit_code=None):
+        self.handle, self.exit_code, self.closed = handle, exit_code, []
+
+    def OpenProcess(self, access, inherit, pid):
+        return self.handle
+
+    def GetExitCodeProcess(self, handle, code):
+        if self.exit_code is None:
+            return 0
+        code._obj.value = self.exit_code
+        return 1
+
+    def CloseHandle(self, handle):
+        self.closed.append(handle)
+        return 1
+
+
+@pytest.mark.parametrize(("handle", "last_error", "exit_code", "alive"), [
+    (0, 87, None, False),  # no such process
+    (0, 5, None, True),  # access denied: it exists
+    (0, 1, None, True),  # unexpected error: keep the folder
+    (7, 0, 259, True),  # STILL_ACTIVE
+    (7, 0, 0, False),  # exited, a handle is still open somewhere
+    (7, 0, None, True),  # exit code unreadable: keep the folder
+])
+def test_windows_process_alive(monkeypatch, handle, last_error, exit_code, alive):
+    kernel32 = _FakeKernel32(handle, exit_code)
+    monkeypatch.setattr(download, "_win32", lambda: (kernel32, lambda: last_error))
+    assert download._windows_process_alive(1234) is alive
+    assert kernel32.closed == ([handle] if handle else [])
 
 
 def test_strict_policy_blocks_host_only_cookie_on_subdomain(tmp_path):

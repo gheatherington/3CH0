@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import atexit
 import contextlib
+import ctypes
 import dataclasses
 import http.cookiejar
 import json
@@ -184,6 +185,10 @@ class WorkDir:
 
 
 _JAR_PREFIX = "3ch0-jar-"
+_IS_WINDOWS = os.name == "nt"
+_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+_ERROR_INVALID_PARAMETER = 87
+_STILL_ACTIVE = 259
 atexit.register(lambda: remove_private_jar_dir())
 _jar_dir: Path | None = None
 _jar_lock = threading.Lock()
@@ -214,14 +219,54 @@ def sweep_stale_jar_dirs() -> None:
             pid = int(entry.name[len(_JAR_PREFIX):].split("-", 1)[0])
         except ValueError:
             continue
-        if pid == os.getpid():
+        if pid == os.getpid() or _process_alive(pid):
             continue
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            shutil.rmtree(entry, ignore_errors=True)
-        except PermissionError:
-            continue  # alive, owned by someone else
+        shutil.rmtree(entry, ignore_errors=True)
+
+
+def _process_alive(pid: int) -> bool:
+    if _IS_WINDOWS:
+        return _windows_process_alive(pid)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # alive, owned by someone else
+    return True
+
+
+def _win32() -> tuple[Any, Callable[[], int]]:
+    """kernel32 with typed signatures (64-bit handles) and its last-error getter."""
+    from ctypes import POINTER, WinDLL, get_last_error, wintypes  # type: ignore[attr-defined]
+
+    kernel32 = WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, POINTER(wintypes.DWORD))
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    return kernel32, get_last_error
+
+
+def _windows_process_alive(pid: int) -> bool:
+    """Query the process instead of ``os.kill(pid, 0)``: on Windows signal 0 is CTRL_C_EVENT.
+
+    Any answer other than "no such process" counts as alive, so a jar dir that may still be
+    in use is never deleted.
+    """
+    kernel32, get_last_error = _win32()
+    handle = kernel32.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return get_last_error() != _ERROR_INVALID_PARAMETER  # how Windows reports an unknown pid
+    try:
+        code = ctypes.c_ulong()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            return True
+        return code.value == _STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 # --------------------------------------------------------------------------------------
